@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Question or Discussion
+    url: https://github.com/michalovadek/idealist/discussions
+    about: Ask questions or discuss ideas in GitHub Discussions
+  - name: Documentation
+    url: https://github.com/michalovadek/idealist#readme
+    about: Check the documentation for usage examples and guides
