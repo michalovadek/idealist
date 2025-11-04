@@ -186,8 +186,8 @@ class ModelIO:
             ideal_points_samples=data.get("ideal_points_samples"),
             temporal_ideal_points=data.get("temporal_ideal_points"),
             convergence_info=metadata.get("convergence_info", {}),
-            computation_time=metadata["computation_time"],
-            log_likelihood=metadata["log_likelihood"],
+            computation_time=metadata.get("computation_time", 0.0),
+            log_likelihood=metadata.get("log_likelihood", None),
         )
 
         # Reconstruct model
@@ -237,8 +237,8 @@ class ModelIO:
             ideal_points=np.array(data["results"]["ideal_points"]),
             difficulty=np.array(data["results"]["difficulty"]),
             discrimination=np.array(data["results"]["discrimination"]),
-            computation_time=data["results"]["computation_time"],
-            log_likelihood=data["results"]["log_likelihood"],
+            computation_time=data["results"].get("computation_time", 0.0),
+            log_likelihood=data["results"].get("log_likelihood", None),
             convergence_info=data["results"].get("convergence_info", {}),
         )
 
