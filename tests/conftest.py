@@ -45,9 +45,7 @@ def _generate_binary_data(n_persons, n_items, n_dims, sparsity, seed):
                 continue
 
             # Compute probability
-            linear_pred = true_difficulty[j] + np.sum(
-                true_discrimination[j] * true_ideal_points[i]
-            )
+            linear_pred = true_difficulty[j] + np.sum(true_discrimination[j] * true_ideal_points[i])
             prob = 1 / (1 + np.exp(-linear_pred))
 
             # Generate response
@@ -58,15 +56,15 @@ def _generate_binary_data(n_persons, n_items, n_dims, sparsity, seed):
             responses.append(response)
 
     return {
-        'person_ids': np.array(person_ids),
-        'item_ids': np.array(item_ids),
-        'responses': np.array(responses),
-        'n_persons': n_persons,
-        'n_items': n_items,
-        'n_dims': n_dims,
-        'true_ideal_points': true_ideal_points,
-        'true_difficulty': true_difficulty,
-        'true_discrimination': true_discrimination,
+        "person_ids": np.array(person_ids),
+        "item_ids": np.array(item_ids),
+        "responses": np.array(responses),
+        "n_persons": n_persons,
+        "n_items": n_items,
+        "n_dims": n_dims,
+        "true_ideal_points": true_ideal_points,
+        "true_difficulty": true_difficulty,
+        "true_discrimination": true_discrimination,
     }
 
 
@@ -93,9 +91,7 @@ def _generate_ordinal_data(n_persons, n_items, n_dims, n_categories, sparsity, s
                 continue
 
             # Compute linear predictor
-            linear_pred = true_difficulty[j] + np.sum(
-                true_discrimination[j] * true_ideal_points[i]
-            )
+            linear_pred = true_difficulty[j] + np.sum(true_discrimination[j] * true_ideal_points[i])
 
             # Convert to ordinal category using cumulative probabilities
             cumulative_probs = 1 / (1 + np.exp(-(linear_pred - true_thresholds)))
@@ -114,17 +110,17 @@ def _generate_ordinal_data(n_persons, n_items, n_dims, n_categories, sparsity, s
             responses.append(response)
 
     return {
-        'person_ids': np.array(person_ids),
-        'item_ids': np.array(item_ids),
-        'responses': np.array(responses),
-        'n_persons': n_persons,
-        'n_items': n_items,
-        'n_dims': n_dims,
-        'n_categories': n_categories,
-        'true_ideal_points': true_ideal_points,
-        'true_difficulty': true_difficulty,
-        'true_discrimination': true_discrimination,
-        'true_thresholds': true_thresholds,
+        "person_ids": np.array(person_ids),
+        "item_ids": np.array(item_ids),
+        "responses": np.array(responses),
+        "n_persons": n_persons,
+        "n_items": n_items,
+        "n_dims": n_dims,
+        "n_categories": n_categories,
+        "true_ideal_points": true_ideal_points,
+        "true_difficulty": true_difficulty,
+        "true_discrimination": true_discrimination,
+        "true_thresholds": true_thresholds,
     }
 
 
@@ -148,9 +144,7 @@ def _generate_continuous_data(n_persons, n_items, n_dims, sparsity, seed, bounde
                 continue
 
             # Compute linear predictor
-            linear_pred = true_difficulty[j] + np.sum(
-                true_discrimination[j] * true_ideal_points[i]
-            )
+            linear_pred = true_difficulty[j] + np.sum(true_discrimination[j] * true_ideal_points[i])
 
             # Add noise
             response = linear_pred + np.random.normal(0, 0.5)
@@ -164,15 +158,15 @@ def _generate_continuous_data(n_persons, n_items, n_dims, sparsity, seed, bounde
             responses.append(response)
 
     return {
-        'person_ids': np.array(person_ids),
-        'item_ids': np.array(item_ids),
-        'responses': np.array(responses),
-        'n_persons': n_persons,
-        'n_items': n_items,
-        'n_dims': n_dims,
-        'true_ideal_points': true_ideal_points,
-        'true_difficulty': true_difficulty,
-        'true_discrimination': true_discrimination,
+        "person_ids": np.array(person_ids),
+        "item_ids": np.array(item_ids),
+        "responses": np.array(responses),
+        "n_persons": n_persons,
+        "n_items": n_items,
+        "n_dims": n_dims,
+        "true_ideal_points": true_ideal_points,
+        "true_difficulty": true_difficulty,
+        "true_discrimination": true_discrimination,
     }
 
 
@@ -196,9 +190,7 @@ def _generate_count_data(n_persons, n_items, n_dims, sparsity, seed):
                 continue
 
             # Compute rate parameter
-            linear_pred = true_difficulty[j] + np.sum(
-                true_discrimination[j] * true_ideal_points[i]
-            )
+            linear_pred = true_difficulty[j] + np.sum(true_discrimination[j] * true_ideal_points[i])
             rate = np.exp(linear_pred)
 
             # Generate count
@@ -209,15 +201,15 @@ def _generate_count_data(n_persons, n_items, n_dims, sparsity, seed):
             responses.append(response)
 
     return {
-        'person_ids': np.array(person_ids),
-        'item_ids': np.array(item_ids),
-        'responses': np.array(responses),
-        'n_persons': n_persons,
-        'n_items': n_items,
-        'n_dims': n_dims,
-        'true_ideal_points': true_ideal_points,
-        'true_difficulty': true_difficulty,
-        'true_discrimination': true_discrimination,
+        "person_ids": np.array(person_ids),
+        "item_ids": np.array(item_ids),
+        "responses": np.array(responses),
+        "n_persons": n_persons,
+        "n_items": n_items,
+        "n_dims": n_dims,
+        "true_ideal_points": true_ideal_points,
+        "true_difficulty": true_difficulty,
+        "true_discrimination": true_discrimination,
     }
 
 
@@ -236,19 +228,25 @@ def multidim_binary_data():
 @pytest.fixture
 def small_ordinal_data():
     """Small synthetic ordinal response data (5-point scale)."""
-    return _generate_ordinal_data(n_persons=30, n_items=15, n_dims=1, n_categories=5, sparsity=0.8, seed=42)
+    return _generate_ordinal_data(
+        n_persons=30, n_items=15, n_dims=1, n_categories=5, sparsity=0.8, seed=42
+    )
 
 
 @pytest.fixture
 def small_continuous_data():
     """Small synthetic continuous response data."""
-    return _generate_continuous_data(n_persons=30, n_items=15, n_dims=1, sparsity=0.8, seed=42, bounded=False)
+    return _generate_continuous_data(
+        n_persons=30, n_items=15, n_dims=1, sparsity=0.8, seed=42, bounded=False
+    )
 
 
 @pytest.fixture
 def small_bounded_continuous_data():
     """Small synthetic bounded continuous response data."""
-    return _generate_continuous_data(n_persons=30, n_items=15, n_dims=1, sparsity=0.8, seed=42, bounded=True)
+    return _generate_continuous_data(
+        n_persons=30, n_items=15, n_dims=1, sparsity=0.8, seed=42, bounded=True
+    )
 
 
 @pytest.fixture

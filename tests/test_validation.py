@@ -30,9 +30,9 @@ class TestDataValidation:
                 person_ids=person_ids,
                 item_ids=item_ids,
                 responses=responses,
-                inference='vi',
+                inference="vi",
                 vi_steps=100,
-                device='cpu',
+                device="cpu",
                 progress_bar=False,
             )
 
@@ -50,9 +50,9 @@ class TestDataValidation:
                 person_ids=person_ids,
                 item_ids=item_ids,
                 responses=responses,
-                inference='vi',
+                inference="vi",
                 vi_steps=100,
-                device='cpu',
+                device="cpu",
                 progress_bar=False,
             )
 
@@ -73,9 +73,9 @@ class TestDataValidation:
                 person_ids=person_ids,
                 item_ids=item_ids,
                 responses=responses,
-                inference='vi',
+                inference="vi",
                 vi_steps=100,
-                device='cpu',
+                device="cpu",
                 progress_bar=False,
             )
             # If it succeeds, just verify it doesn't crash
@@ -99,9 +99,9 @@ class TestDataValidation:
                 person_ids=person_ids,
                 item_ids=item_ids,
                 responses=responses,
-                inference='vi',
+                inference="vi",
                 vi_steps=100,
-                device='cpu',
+                device="cpu",
                 progress_bar=False,
             )
             # If it works, check basic structure
@@ -196,45 +196,51 @@ class TestDataLoader:
 
     def test_load_from_dataframe(self):
         """Test loading data from a pandas DataFrame."""
-        df = pd.DataFrame({
-            'person': ['A', 'A', 'B', 'B', 'C'],
-            'item': ['X', 'Y', 'X', 'Y', 'X'],
-            'response': [1, 0, 1, 1, 0],
-        })
+        df = pd.DataFrame(
+            {
+                "person": ["A", "A", "B", "B", "C"],
+                "item": ["X", "Y", "X", "Y", "X"],
+                "response": [1, 0, 1, 1, 0],
+            }
+        )
 
-        data = load_data(df, person_col='person', item_col='item', response_col='response')
+        data = load_data(df, person_col="person", item_col="item", response_col="response")
 
         assert data.n_persons == 3
         assert data.n_items == 2
         assert data.n_observations == 5
-        assert 'A' in data.person_names
-        assert 'X' in data.item_names
+        assert "A" in data.person_names
+        assert "X" in data.item_names
 
     def test_load_missing_column(self):
         """Test that missing columns raise an error."""
-        df = pd.DataFrame({
-            'person': ['A', 'B'],
-            'item': ['X', 'Y'],
-            # Missing 'response' column
-        })
+        df = pd.DataFrame(
+            {
+                "person": ["A", "B"],
+                "item": ["X", "Y"],
+                # Missing 'response' column
+            }
+        )
 
         with pytest.raises(ValueError, match="Missing required columns"):
-            load_data(df, person_col='person', item_col='item', response_col='response')
+            load_data(df, person_col="person", item_col="item", response_col="response")
 
     def test_load_preserves_names(self):
         """Test that person and item names are preserved."""
-        df = pd.DataFrame({
-            'legislator': ['Sen. Smith', 'Sen. Jones', 'Sen. Smith'],
-            'bill': ['HR101', 'HR101', 'HR202'],
-            'vote': [1, 0, 1],
-        })
+        df = pd.DataFrame(
+            {
+                "legislator": ["Sen. Smith", "Sen. Jones", "Sen. Smith"],
+                "bill": ["HR101", "HR101", "HR202"],
+                "vote": [1, 0, 1],
+            }
+        )
 
-        data = load_data(df, person_col='legislator', item_col='bill', response_col='vote')
+        data = load_data(df, person_col="legislator", item_col="bill", response_col="vote")
 
-        assert 'Sen. Smith' in data.person_names
-        assert 'Sen. Jones' in data.person_names
-        assert 'HR101' in data.item_names
-        assert 'HR202' in data.item_names
+        assert "Sen. Smith" in data.person_names
+        assert "Sen. Jones" in data.person_names
+        assert "HR101" in data.item_names
+        assert "HR202" in data.item_names
 
     def test_IdealPointData_validation(self):
         """Test that IdealPointData validates inputs."""
@@ -243,8 +249,8 @@ class TestDataLoader:
             person_ids=np.array([0, 1, 0]),
             item_ids=np.array([0, 0, 1]),
             responses=np.array([1.0, 0.0, 1.0]),
-            person_names=['A', 'B'],
-            item_names=['X', 'Y'],
+            person_names=["A", "B"],
+            item_names=["X", "Y"],
         )
         assert data.n_persons == 2
         assert data.n_items == 2
@@ -257,8 +263,8 @@ class TestDataLoader:
                 person_ids=np.array([0, 1, 5]),
                 item_ids=np.array([0, 0, 1]),
                 responses=np.array([1.0, 0.0, 1.0]),
-                person_names=['A', 'B'],
-                item_names=['X', 'Y'],
+                person_names=["A", "B"],
+                item_names=["X", "Y"],
             )
 
     def test_IdealPointData_summary(self):
@@ -267,16 +273,16 @@ class TestDataLoader:
             person_ids=np.array([0, 1, 0, 1]),
             item_ids=np.array([0, 0, 1, 1]),
             responses=np.array([1.0, 0.0, 1.0, 1.0]),
-            person_names=['A', 'B'],
-            item_names=['X', 'Y'],
+            person_names=["A", "B"],
+            item_names=["X", "Y"],
         )
 
         summary = data.summary()
-        assert 'Persons:' in summary
-        assert 'Items:' in summary
-        assert 'Observations:' in summary
-        assert '2' in summary  # 2 persons
-        assert '4' in summary  # 4 observations
+        assert "Persons:" in summary
+        assert "Items:" in summary
+        assert "Observations:" in summary
+        assert "2" in summary  # 2 persons
+        assert "4" in summary  # 4 observations
 
 
 class TestResponseTypeValidation:
@@ -411,9 +417,9 @@ class TestResponseTypeValidation:
                 person_ids=person_ids,
                 item_ids=item_ids,
                 responses=responses,
-                inference='vi',
+                inference="vi",
                 vi_steps=100,
-                device='cpu',
+                device="cpu",
                 progress_bar=False,
             )
 
@@ -436,9 +442,9 @@ class TestResponseTypeValidation:
                 person_ids=person_ids,
                 item_ids=item_ids,
                 responses=responses,
-                inference='vi',
+                inference="vi",
                 vi_steps=100,
-                device='cpu',
+                device="cpu",
                 progress_bar=False,
             )
 
@@ -456,9 +462,9 @@ class TestResponseTypeValidation:
                 person_ids=person_ids,
                 item_ids=item_ids,
                 responses=responses,
-                inference='vi',
+                inference="vi",
                 vi_steps=100,
-                device='cpu',
+                device="cpu",
                 progress_bar=False,
             )
 
@@ -480,12 +486,12 @@ class TestResponseTypeValidation:
                 person_ids=person_ids,
                 item_ids=item_ids,
                 responses=responses,
-                inference='vi',
+                inference="vi",
                 vi_steps=100,
-                device='cpu',
+                device="cpu",
                 progress_bar=False,
             )
 
 
-if __name__ == '__main__':
-    pytest.main([__file__, '-v'])
+if __name__ == "__main__":
+    pytest.main([__file__, "-v"])

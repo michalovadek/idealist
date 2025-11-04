@@ -7,10 +7,8 @@ robust behavior.
 
 import pytest
 import numpy as np
-import pandas as pd
 
 from idealist import IdealPointEstimator, IdealPointConfig, ResponseType
-from idealist.data import load_data
 
 
 class TestDataEdgeCases:
@@ -31,9 +29,9 @@ class TestDataEdgeCases:
                 person_ids=person_ids,
                 item_ids=item_ids,
                 responses=responses,
-                inference='vi',
+                inference="vi",
                 vi_steps=300,
-                device='cpu',
+                device="cpu",
                 progress_bar=False,
             )
             # If it succeeds, results should be valid
@@ -57,9 +55,9 @@ class TestDataEdgeCases:
                 person_ids=person_ids,
                 item_ids=item_ids,
                 responses=responses,
-                inference='vi',
+                inference="vi",
                 vi_steps=300,
-                device='cpu',
+                device="cpu",
                 progress_bar=False,
             )
             assert results is not None
@@ -81,9 +79,9 @@ class TestDataEdgeCases:
                 person_ids=person_ids,
                 item_ids=item_ids,
                 responses=responses,
-                inference='vi',
+                inference="vi",
                 vi_steps=300,
-                device='cpu',
+                device="cpu",
                 progress_bar=False,
             )
             assert results is not None
@@ -119,9 +117,9 @@ class TestDataEdgeCases:
                     person_ids=np.array(person_ids),
                     item_ids=np.array(item_ids),
                     responses=np.array(responses),
-                    inference='vi',
+                    inference="vi",
                     vi_steps=500,
-                    device='cpu',
+                    device="cpu",
                     progress_bar=False,
                 )
                 assert results is not None
@@ -144,9 +142,9 @@ class TestDataEdgeCases:
                 person_ids=person_ids,
                 item_ids=item_ids,
                 responses=responses,
-                inference='vi',
+                inference="vi",
                 vi_steps=300,
-                device='cpu',
+                device="cpu",
                 progress_bar=False,
             )
             assert results is not None
@@ -178,15 +176,15 @@ class TestDataEdgeCases:
             person_ids=np.array(person_ids),
             item_ids=np.array(item_ids),
             responses=np.array(responses),
-            inference='vi',
+            inference="vi",
             vi_steps=500,
-            device='cpu',
+            device="cpu",
             progress_bar=False,
         )
 
         assert results is not None
         assert results.ideal_points.shape[0] == n_persons
-        print(f"\n  Many persons, few items test successful")
+        print("\n  Many persons, few items test successful")
 
     def test_few_persons_many_items(self):
         """Test with few persons but many items."""
@@ -212,15 +210,15 @@ class TestDataEdgeCases:
             person_ids=np.array(person_ids),
             item_ids=np.array(item_ids),
             responses=np.array(responses),
-            inference='vi',
+            inference="vi",
             vi_steps=500,
-            device='cpu',
+            device="cpu",
             progress_bar=False,
         )
 
         assert results is not None
         assert results.difficulty.shape[0] == n_items
-        print(f"\n  Few persons, many items test successful")
+        print("\n  Few persons, many items test successful")
 
     def test_person_with_no_variation(self):
         """Test when a person responds the same way to all items."""
@@ -236,9 +234,9 @@ class TestDataEdgeCases:
                 person_ids=person_ids,
                 item_ids=item_ids,
                 responses=responses,
-                inference='vi',
+                inference="vi",
                 vi_steps=300,
-                device='cpu',
+                device="cpu",
                 progress_bar=False,
             )
             assert results is not None
@@ -259,9 +257,9 @@ class TestDataEdgeCases:
                 person_ids=person_ids,
                 item_ids=item_ids,
                 responses=responses,
-                inference='vi',
+                inference="vi",
                 vi_steps=300,
-                device='cpu',
+                device="cpu",
                 progress_bar=False,
             )
             assert results is not None
@@ -288,9 +286,9 @@ class TestConfigurationEdgeCases:
                 person_ids=person_ids,
                 item_ids=item_ids,
                 responses=responses,
-                inference='vi',
+                inference="vi",
                 vi_steps=500,
-                device='cpu',
+                device="cpu",
                 progress_bar=False,
             )
 
@@ -308,14 +306,14 @@ class TestConfigurationEdgeCases:
             person_ids=person_ids,
             item_ids=item_ids,
             responses=responses,
-            inference='vi',
+            inference="vi",
             vi_steps=10,  # Very few
-            device='cpu',
+            device="cpu",
             progress_bar=False,
         )
 
         assert results is not None
-        print(f"\n  Minimal VI steps test successful")
+        print("\n  Minimal VI steps test successful")
 
     def test_ordinal_with_many_categories(self):
         """Test ordinal response with many categories (10-point scale)."""
@@ -324,11 +322,7 @@ class TestConfigurationEdgeCases:
         # 10-point scale
         responses = np.array([0, 5, 2, 8, 3, 9] * 10)
 
-        config = IdealPointConfig(
-            n_dims=1,
-            response_type=ResponseType.ORDINAL,
-            n_categories=10
-        )
+        config = IdealPointConfig(n_dims=1, response_type=ResponseType.ORDINAL, n_categories=10)
         model = IdealPointEstimator(config)
 
         try:
@@ -336,9 +330,9 @@ class TestConfigurationEdgeCases:
                 person_ids=person_ids,
                 item_ids=item_ids,
                 responses=responses,
-                inference='vi',
+                inference="vi",
                 vi_steps=500,
-                device='cpu',
+                device="cpu",
                 progress_bar=False,
             )
             assert results is not None
@@ -359,14 +353,14 @@ class TestConfigurationEdgeCases:
             person_ids=person_ids,
             item_ids=item_ids,
             responses=responses,
-            inference='vi',
+            inference="vi",
             vi_steps=500,
-            device='cpu',
+            device="cpu",
             progress_bar=False,
         )
 
         assert results is not None
-        print(f"\n  Count data with zeros test successful")
+        print("\n  Count data with zeros test successful")
 
 
 class TestNumericEdgeCases:
@@ -392,9 +386,9 @@ class TestNumericEdgeCases:
             person_ids=person_ids,
             item_ids=item_ids,
             responses=responses,
-            inference='vi',
+            inference="vi",
             vi_steps=500,
-            device='cpu',
+            device="cpu",
             progress_bar=False,
         )
 
@@ -402,7 +396,7 @@ class TestNumericEdgeCases:
         assert results is not None
         assert np.abs(results.ideal_points).mean() < 1.0
 
-        print(f"\n  Tight priors test successful")
+        print("\n  Tight priors test successful")
 
     def test_responses_with_nan(self):
         """Test that NaN responses are rejected or handled."""
@@ -419,9 +413,9 @@ class TestNumericEdgeCases:
                 person_ids=person_ids,
                 item_ids=item_ids,
                 responses=responses,
-                inference='vi',
+                inference="vi",
                 vi_steps=100,
-                device='cpu',
+                device="cpu",
                 progress_bar=False,
             )
 
@@ -440,12 +434,12 @@ class TestNumericEdgeCases:
                 person_ids=person_ids,
                 item_ids=item_ids,
                 responses=responses,
-                inference='vi',
+                inference="vi",
                 vi_steps=100,
-                device='cpu',
+                device="cpu",
                 progress_bar=False,
             )
 
 
-if __name__ == '__main__':
-    pytest.main([__file__, '-v'])
+if __name__ == "__main__":
+    pytest.main([__file__, "-v"])

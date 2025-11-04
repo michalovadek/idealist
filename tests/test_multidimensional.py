@@ -18,34 +18,34 @@ class TestMultiDimensional:
         """Test 2-dimensional ideal point estimation."""
         data = multidim_binary_data
 
-        assert data['n_dims'] == 2, "Fixture should have 2 dimensions"
+        assert data["n_dims"] == 2, "Fixture should have 2 dimensions"
 
         config = IdealPointConfig(
-            n_dims=data['n_dims'],
+            n_dims=data["n_dims"],
             response_type=ResponseType.BINARY,
         )
 
         model = IdealPointEstimator(config)
 
         results = model.fit(
-            person_ids=data['person_ids'],
-            item_ids=data['item_ids'],
-            responses=data['responses'],
-            inference='vi',
+            person_ids=data["person_ids"],
+            item_ids=data["item_ids"],
+            responses=data["responses"],
+            inference="vi",
             vi_steps=1500,
             num_samples=300,
-            device='cpu',
+            device="cpu",
             progress_bar=False,
         )
 
         # Check results structure
         assert results is not None
-        assert results.ideal_points.shape == (data['n_persons'], 2)
-        assert results.discrimination.shape == (data['n_items'], 2)
-        assert results.difficulty.shape == (data['n_items'],)
+        assert results.ideal_points.shape == (data["n_persons"], 2)
+        assert results.discrimination.shape == (data["n_items"], 2)
+        assert results.difficulty.shape == (data["n_items"],)
 
         # Check uncertainty quantification for both dimensions
-        assert results.ideal_points_std.shape == (data['n_persons'], 2)
+        assert results.ideal_points_std.shape == (data["n_persons"], 2)
 
         print(f"\n  2D estimation completed in {results.computation_time:.2f}s")
 
@@ -61,13 +61,13 @@ class TestMultiDimensional:
         model = IdealPointEstimator(config)
 
         results = model.fit(
-            person_ids=data['person_ids'],
-            item_ids=data['item_ids'],
-            responses=data['responses'],
-            inference='vi',
+            person_ids=data["person_ids"],
+            item_ids=data["item_ids"],
+            responses=data["responses"],
+            inference="vi",
             vi_steps=2000,
             num_samples=500,
-            device='cpu',
+            device="cpu",
             progress_bar=False,
         )
 
@@ -97,17 +97,17 @@ class TestMultiDimensional:
         model = IdealPointEstimator(config)
 
         results = model.fit(
-            person_ids=data['person_ids'],
-            item_ids=data['item_ids'],
-            responses=data['responses'],
-            inference='map',
+            person_ids=data["person_ids"],
+            item_ids=data["item_ids"],
+            responses=data["responses"],
+            inference="map",
             map_steps=1500,
-            device='cpu',
+            device="cpu",
             progress_bar=False,
         )
 
         assert results is not None
-        assert results.ideal_points.shape == (data['n_persons'], 2)
+        assert results.ideal_points.shape == (data["n_persons"], 2)
 
         print(f"\n  2D MAP completed in {results.computation_time:.2f}s")
 
@@ -123,27 +123,27 @@ class TestMultiDimensional:
         model = IdealPointEstimator(config)
 
         results = model.fit(
-            person_ids=data['person_ids'],
-            item_ids=data['item_ids'],
-            responses=data['responses'],
-            inference='vi',
+            person_ids=data["person_ids"],
+            item_ids=data["item_ids"],
+            responses=data["responses"],
+            inference="vi",
             vi_steps=1000,
-            device='cpu',
+            device="cpu",
             progress_bar=False,
         )
 
         df_dict = results.to_dataframe()
 
         # Check that DataFrame has columns for both dimensions
-        persons_df = df_dict['persons']
-        items_df = df_dict['items']
+        persons_df = df_dict["persons"]
+        items_df = df_dict["items"]
 
         # Should have ideal_point columns (might be named differently for multidim)
-        assert len(persons_df) == data['n_persons']
-        assert len(items_df) == data['n_items']
+        assert len(persons_df) == data["n_persons"]
+        assert len(items_df) == data["n_items"]
 
         print(f"\n  2D DataFrame: {persons_df.shape}, {items_df.shape}")
 
 
-if __name__ == '__main__':
-    pytest.main([__file__, '-v'])
+if __name__ == "__main__":
+    pytest.main([__file__, "-v"])

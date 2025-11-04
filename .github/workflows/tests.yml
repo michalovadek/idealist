@@ -12,9 +12,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Note: Windows tests may fail due to JAX DLL issues
-        # This is a known limitation of JAX on Windows
-        os: [ubuntu-latest, macos-latest]
+        os: [ubuntu-latest, macos-latest, windows-latest]
         python-version: ["3.9", "3.10", "3.11", "3.12"]
 
     steps:
@@ -34,7 +32,6 @@ jobs:
     - name: Run tests with pytest
       run: |
         pytest --cov=idealist --cov-report=xml --cov-report=term -v
-      continue-on-error: ${{ matrix.os == 'windows-latest' }}
 
     - name: Upload coverage to Codecov
       if: success()

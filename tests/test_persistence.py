@@ -7,8 +7,6 @@ in various formats (pickle, npz, json).
 
 import pytest
 import numpy as np
-import tempfile
-from pathlib import Path
 
 from idealist import IdealPointEstimator, IdealPointConfig, ResponseType
 from idealist.core.persistence import ModelIO
@@ -27,40 +25,35 @@ class TestModelSaveLoad:
         model = IdealPointEstimator(config)
 
         results = model.fit(
-            person_ids=data['person_ids'],
-            item_ids=data['item_ids'],
-            responses=data['responses'],
-            inference='vi',
+            person_ids=data["person_ids"],
+            item_ids=data["item_ids"],
+            responses=data["responses"],
+            inference="vi",
             vi_steps=500,
-            device='cpu',
+            device="cpu",
             progress_bar=False,
         )
 
         # Save model
         save_path = tmp_path / "model.pkl"
-        ModelIO.save(model, str(save_path), format='pickle')
+        ModelIO.save(model, str(save_path), format="pickle")
 
         assert save_path.exists()
 
         # Load model
-        loaded_model = ModelIO.load(str(save_path), format='pickle')
+        loaded_model = ModelIO.load(str(save_path), format="pickle")
 
         # Verify loaded model has same results
         assert loaded_model.results is not None
         np.testing.assert_array_almost_equal(
-            loaded_model.results.ideal_points,
-            results.ideal_points
+            loaded_model.results.ideal_points, results.ideal_points
         )
+        np.testing.assert_array_almost_equal(loaded_model.results.difficulty, results.difficulty)
         np.testing.assert_array_almost_equal(
-            loaded_model.results.difficulty,
-            results.difficulty
-        )
-        np.testing.assert_array_almost_equal(
-            loaded_model.results.discrimination,
-            results.discrimination
+            loaded_model.results.discrimination, results.discrimination
         )
 
-        print(f"\n  Pickle save/load successful")
+        print("\n  Pickle save/load successful")
 
     def test_save_load_npz(self, small_binary_data, tmp_path):
         """Test save and load with npz format."""
@@ -71,42 +64,38 @@ class TestModelSaveLoad:
         model = IdealPointEstimator(config)
 
         results = model.fit(
-            person_ids=data['person_ids'],
-            item_ids=data['item_ids'],
-            responses=data['responses'],
-            inference='vi',
+            person_ids=data["person_ids"],
+            item_ids=data["item_ids"],
+            responses=data["responses"],
+            inference="vi",
             vi_steps=500,
-            device='cpu',
+            device="cpu",
             progress_bar=False,
         )
 
         # Save model
         save_path = tmp_path / "model.npz"
-        ModelIO.save(model, str(save_path), format='npz')
+        ModelIO.save(model, str(save_path), format="npz")
 
         assert save_path.exists()
         # Check that metadata JSON was also created
         assert (tmp_path / "model.json").exists()
 
         # Load model
-        loaded_model = ModelIO.load(str(save_path), format='npz')
+        loaded_model = ModelIO.load(str(save_path), format="npz")
 
         # Verify loaded model has same results
         assert loaded_model.results is not None
         np.testing.assert_array_almost_equal(
-            loaded_model.results.ideal_points,
-            results.ideal_points
+            loaded_model.results.ideal_points, results.ideal_points
         )
-        np.testing.assert_array_almost_equal(
-            loaded_model.results.difficulty,
-            results.difficulty
-        )
+        np.testing.assert_array_almost_equal(loaded_model.results.difficulty, results.difficulty)
 
         # Check that config was preserved
         assert loaded_model.config.n_dims == config.n_dims
         assert loaded_model.config.response_type == config.response_type
 
-        print(f"\n  NPZ save/load successful")
+        print("\n  NPZ save/load successful")
 
     def test_save_load_json(self, small_binary_data, tmp_path):
         """Test save and load with JSON format."""
@@ -117,33 +106,31 @@ class TestModelSaveLoad:
         model = IdealPointEstimator(config)
 
         results = model.fit(
-            person_ids=data['person_ids'],
-            item_ids=data['item_ids'],
-            responses=data['responses'],
-            inference='vi',
+            person_ids=data["person_ids"],
+            item_ids=data["item_ids"],
+            responses=data["responses"],
+            inference="vi",
             vi_steps=500,
-            device='cpu',
+            device="cpu",
             progress_bar=False,
         )
 
         # Save model
         save_path = tmp_path / "model.json"
-        ModelIO.save(model, str(save_path), format='json')
+        ModelIO.save(model, str(save_path), format="json")
 
         assert save_path.exists()
 
         # Load model
-        loaded_model = ModelIO.load(str(save_path), format='json')
+        loaded_model = ModelIO.load(str(save_path), format="json")
 
         # Verify loaded model has same results (with some tolerance for JSON precision)
         assert loaded_model.results is not None
         np.testing.assert_array_almost_equal(
-            loaded_model.results.ideal_points,
-            results.ideal_points,
-            decimal=6
+            loaded_model.results.ideal_points, results.ideal_points, decimal=6
         )
 
-        print(f"\n  JSON save/load successful")
+        print("\n  JSON save/load successful")
 
     def test_auto_format_detection(self, small_binary_data, tmp_path):
         """Test that format is auto-detected from file extension."""
@@ -153,25 +140,25 @@ class TestModelSaveLoad:
         model = IdealPointEstimator(config)
 
         model.fit(
-            person_ids=data['person_ids'],
-            item_ids=data['item_ids'],
-            responses=data['responses'],
-            inference='vi',
+            person_ids=data["person_ids"],
+            item_ids=data["item_ids"],
+            responses=data["responses"],
+            inference="vi",
             vi_steps=500,
-            device='cpu',
+            device="cpu",
             progress_bar=False,
         )
 
         # Save with auto format (use .npz since pickle has issues)
         save_path = tmp_path / "model.npz"
-        ModelIO.save(model, str(save_path), format='auto')
+        ModelIO.save(model, str(save_path), format="auto")
 
         # Load with auto format
-        loaded_model = ModelIO.load(str(save_path), format='auto')
+        loaded_model = ModelIO.load(str(save_path), format="auto")
 
         assert loaded_model.results is not None
 
-        print(f"\n  Auto format detection successful")
+        print("\n  Auto format detection successful")
 
     @pytest.mark.parametrize("format_type", ["npz", "json"])
     def test_save_load_parametrized(self, small_binary_data, tmp_path, format_type):
@@ -182,17 +169,17 @@ class TestModelSaveLoad:
         model = IdealPointEstimator(config)
 
         results = model.fit(
-            person_ids=data['person_ids'],
-            item_ids=data['item_ids'],
-            responses=data['responses'],
-            inference='vi',
+            person_ids=data["person_ids"],
+            item_ids=data["item_ids"],
+            responses=data["responses"],
+            inference="vi",
             vi_steps=300,
-            device='cpu',
+            device="cpu",
             progress_bar=False,
         )
 
         # Determine file extension
-        ext_map = {'npz': 'npz', 'json': 'json'}
+        ext_map = {"npz": "npz", "json": "json"}
         save_path = tmp_path / f"model.{ext_map[format_type]}"
 
         # Save and load
@@ -222,7 +209,7 @@ class TestModelSaveLoad:
         try:
             ModelIO.save(model, str(save_path))
             # If it doesn't raise, check that model has no results
-            assert not hasattr(model, 'results') or model.results is None
+            assert not hasattr(model, "results") or model.results is None
         except (AttributeError, ValueError, TypeError):
             # Expected - model not fitted
             pass
@@ -235,29 +222,28 @@ class TestModelSaveLoad:
         model = IdealPointEstimator(config)
 
         results = model.fit(
-            person_ids=data['person_ids'],
-            item_ids=data['item_ids'],
-            responses=data['responses'],
-            inference='vi',
+            person_ids=data["person_ids"],
+            item_ids=data["item_ids"],
+            responses=data["responses"],
+            inference="vi",
             vi_steps=500,
             num_samples=200,
-            device='cpu',
+            device="cpu",
             progress_bar=False,
         )
 
         # Save and load
         save_path = tmp_path / "model.npz"
-        ModelIO.save(model, str(save_path), format='npz')
-        loaded_model = ModelIO.load(str(save_path), format='npz')
+        ModelIO.save(model, str(save_path), format="npz")
+        loaded_model = ModelIO.load(str(save_path), format="npz")
 
         # Check that uncertainty estimates are preserved
         if results.ideal_points_std is not None:
             np.testing.assert_array_almost_equal(
-                loaded_model.results.ideal_points_std,
-                results.ideal_points_std
+                loaded_model.results.ideal_points_std, results.ideal_points_std
             )
 
-        print(f"\n  Uncertainty preservation successful")
+        print("\n  Uncertainty preservation successful")
 
     @pytest.mark.slow
     def test_save_multidim_model(self, multidim_binary_data, tmp_path):
@@ -268,12 +254,12 @@ class TestModelSaveLoad:
         model = IdealPointEstimator(config)
 
         results = model.fit(
-            person_ids=data['person_ids'],
-            item_ids=data['item_ids'],
-            responses=data['responses'],
-            inference='vi',
+            person_ids=data["person_ids"],
+            item_ids=data["item_ids"],
+            responses=data["responses"],
+            inference="vi",
             vi_steps=1000,
-            device='cpu',
+            device="cpu",
             progress_bar=False,
         )
 
@@ -283,14 +269,13 @@ class TestModelSaveLoad:
         loaded_model = ModelIO.load(str(save_path))
 
         # Check that 2D structure is preserved
-        assert loaded_model.results.ideal_points.shape == (data['n_persons'], 2)
-        assert loaded_model.results.discrimination.shape == (data['n_items'], 2)
+        assert loaded_model.results.ideal_points.shape == (data["n_persons"], 2)
+        assert loaded_model.results.discrimination.shape == (data["n_items"], 2)
         np.testing.assert_array_almost_equal(
-            loaded_model.results.ideal_points,
-            results.ideal_points
+            loaded_model.results.ideal_points, results.ideal_points
         )
 
-        print(f"\n  Multi-dimensional model save/load successful")
+        print("\n  Multi-dimensional model save/load successful")
 
     def test_roundtrip_different_formats(self, small_binary_data, tmp_path):
         """Test saving in different formats and checking consistency."""
@@ -300,31 +285,29 @@ class TestModelSaveLoad:
         model = IdealPointEstimator(config)
 
         results = model.fit(
-            person_ids=data['person_ids'],
-            item_ids=data['item_ids'],
-            responses=data['responses'],
-            inference='vi',
+            person_ids=data["person_ids"],
+            item_ids=data["item_ids"],
+            responses=data["responses"],
+            inference="vi",
             vi_steps=500,
-            device='cpu',
+            device="cpu",
             progress_bar=False,
         )
 
         # Save in json format (npz has some metadata issues to investigate)
         json_path = tmp_path / "model.json"
-        ModelIO.save(model, str(json_path), format='json')
+        ModelIO.save(model, str(json_path), format="json")
 
         # Load from json
         loaded_json = ModelIO.load(str(json_path))
 
         # Should have same ideal points (within JSON precision)
         np.testing.assert_array_almost_equal(
-            loaded_json.results.ideal_points,
-            results.ideal_points,
-            decimal=5
+            loaded_json.results.ideal_points, results.ideal_points, decimal=5
         )
 
-        print(f"\n  Format roundtrip check successful")
+        print("\n  Format roundtrip check successful")
 
 
-if __name__ == '__main__':
-    pytest.main([__file__, '-v'])
+if __name__ == "__main__":
+    pytest.main([__file__, "-v"])
