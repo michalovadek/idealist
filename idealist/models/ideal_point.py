@@ -30,8 +30,10 @@ Extensions:
 - Multiple response types (binary, ordinal, continuous, count)
 """
 
+from __future__ import annotations
+
 import time
-from typing import Optional, Dict, Union, Literal
+from typing import Optional, Dict, Union, Literal, TYPE_CHECKING
 
 import jax
 import jax.numpy as jnp
@@ -39,12 +41,19 @@ import numpy as np
 import pandas as pd
 import numpyro
 import numpyro.distributions as dist
-from numpyro.infer import MCMC, NUTS, SVI, Trace_ELBO, Predictive
-from numpyro.infer.autoguide import AutoNormal, AutoMultivariateNormal, AutoLowRankMultivariateNormal
+from numpyro.infer import MCMC, NUTS, Predictive
+from numpyro.infer.autoguide import (
+    AutoNormal,
+    AutoMultivariateNormal,
+    AutoLowRankMultivariateNormal,
+)
 
 from ..core.base import BaseIdealPointModel, IdealPointConfig, IdealPointResults, ResponseType
 from ..core.device import DeviceManager
 from ..utils.logging import get_logger
+
+if TYPE_CHECKING:
+    from ..data.loaders import IdealPointData
 
 logger = get_logger(__name__)
 
@@ -122,10 +131,9 @@ class IdealPointEstimator(BaseIdealPointModel):
             # Initial positions
             theta_0 = numpyro.sample(
                 "theta_initial",
-                dist.Normal(
-                    0.0,
-                    self.config.prior_ideal_point_scale
-                ).expand([n_persons, n_dims]).to_event(2)
+                dist.Normal(0.0, self.config.prior_ideal_point_scale)
+                .expand([n_persons, n_dims])
+                .to_event(2),
             )
 
             # Random walk innovations
@@ -133,15 +141,14 @@ class IdealPointEstimator(BaseIdealPointModel):
                 "theta_innovations",
                 dist.Normal(0.0, self.config.temporal_variance)
                 .expand([self.config.n_timepoints - 1, n_persons, n_dims])
-                .to_event(3)
+                .to_event(3),
             )
 
             # Reconstruct trajectory
             cumulative = jnp.cumsum(innovations, axis=0)
-            theta_all = jnp.concatenate([
-                theta_0[None, :, :],
-                theta_0[None, :, :] + cumulative
-            ], axis=0)
+            theta_all = jnp.concatenate(
+                [theta_0[None, :, :], theta_0[None, :, :] + cumulative], axis=0
+            )
 
             # Index by timepoint
             ideal_points = theta_all[timepoints, person_ids, :]
@@ -153,22 +160,24 @@ class IdealPointEstimator(BaseIdealPointModel):
                 n_covariates = person_covariates.shape[1]
                 gamma = numpyro.sample(
                     "person_covariate_effects",
-                    dist.Normal(0.0, self.config.prior_covariate_scale)
-                    .expand([n_covariates, n_dims])
+                    dist.Normal(0.0, self.config.prior_covariate_scale).expand(
+                        [n_covariates, n_dims]
+                    ),
                 )
                 mean_theta = jnp.dot(person_covariates, gamma)
                 ideal_points_all = numpyro.sample(
                     "ideal_points",
-                    dist.Normal(mean_theta, self.config.prior_ideal_point_scale).to_event(2)
+                    dist.Normal(mean_theta, self.config.prior_ideal_point_scale).to_event(2),
                 )
             else:
                 # Standard: θ_i ~ N(0, σ²)
                 ideal_points_all = numpyro.sample(
                     "ideal_points",
                     dist.Normal(
-                        self.config.prior_ideal_point_mean,
-                        self.config.prior_ideal_point_scale
-                    ).expand([n_persons, n_dims]).to_event(2)
+                        self.config.prior_ideal_point_mean, self.config.prior_ideal_point_scale
+                    )
+                    .expand([n_persons, n_dims])
+                    .to_event(2),
                 )
 
             ideal_points = ideal_points_all[person_ids, :]
@@ -179,20 +188,19 @@ class IdealPointEstimator(BaseIdealPointModel):
             n_covariates = item_covariates.shape[1]
             delta = numpyro.sample(
                 "item_difficulty_covariate_effects",
-                dist.Normal(0.0, self.config.prior_covariate_scale).expand([n_covariates])
+                dist.Normal(0.0, self.config.prior_covariate_scale).expand([n_covariates]),
             )
             mean_alpha = jnp.dot(item_covariates, delta)
             difficulty = numpyro.sample(
                 "difficulty",
-                dist.Normal(mean_alpha, self.config.prior_difficulty_scale).to_event(1)
+                dist.Normal(mean_alpha, self.config.prior_difficulty_scale).to_event(1),
             )
         else:
             difficulty = numpyro.sample(
                 "difficulty",
-                dist.Normal(
-                    self.config.prior_difficulty_mean,
-                    self.config.prior_difficulty_scale
-                ).expand([n_items]).to_event(1)
+                dist.Normal(self.config.prior_difficulty_mean, self.config.prior_difficulty_scale)
+                .expand([n_items])
+                .to_event(1),
             )
 
         # Discrimination: β_j ~ N(0, σ_β²)
@@ -200,21 +208,21 @@ class IdealPointEstimator(BaseIdealPointModel):
             n_covariates = item_covariates.shape[1]
             zeta = numpyro.sample(
                 "item_discrimination_covariate_effects",
-                dist.Normal(0.0, self.config.prior_covariate_scale)
-                .expand([n_covariates, n_dims])
+                dist.Normal(0.0, self.config.prior_covariate_scale).expand([n_covariates, n_dims]),
             )
             mean_beta = jnp.dot(item_covariates, zeta)
             discrimination = numpyro.sample(
                 "discrimination",
-                dist.Normal(mean_beta, self.config.prior_discrimination_scale).to_event(2)
+                dist.Normal(mean_beta, self.config.prior_discrimination_scale).to_event(2),
             )
         else:
             discrimination = numpyro.sample(
                 "discrimination",
                 dist.Normal(
-                    self.config.prior_discrimination_mean,
-                    self.config.prior_discrimination_scale
-                ).expand([n_items, n_dims]).to_event(2)
+                    self.config.prior_discrimination_mean, self.config.prior_discrimination_scale
+                )
+                .expand([n_items, n_dims])
+                .to_event(2),
             )
 
         # Index by item
@@ -235,17 +243,21 @@ class IdealPointEstimator(BaseIdealPointModel):
             thresholds = numpyro.sample(
                 "thresholds",
                 dist.TransformedDistribution(
-                    dist.Normal(0.0, self.config.prior_threshold_scale)
-                    .expand([self.config.n_categories - 1]),
-                    dist.transforms.OrderedTransform()
-                )
+                    dist.Normal(0.0, self.config.prior_threshold_scale).expand(
+                        [self.config.n_categories - 1]
+                    ),
+                    dist.transforms.OrderedTransform(),
+                ),
             )
             cumulative_probs = jax.nn.sigmoid(thresholds[None, :] - linear_pred[:, None])
-            padded = jnp.concatenate([
-                jnp.zeros((cumulative_probs.shape[0], 1)),
-                cumulative_probs,
-                jnp.ones((cumulative_probs.shape[0], 1))
-            ], axis=1)
+            padded = jnp.concatenate(
+                [
+                    jnp.zeros((cumulative_probs.shape[0], 1)),
+                    cumulative_probs,
+                    jnp.ones((cumulative_probs.shape[0], 1)),
+                ],
+                axis=1,
+            )
             probs = padded[:, 1:] - padded[:, :-1]
             numpyro.sample("obs", dist.Categorical(probs=probs), obs=responses)
 
@@ -260,14 +272,12 @@ class IdealPointEstimator(BaseIdealPointModel):
         elif self.config.response_type == ResponseType.BOUNDED_CONTINUOUS:
             precision = numpyro.sample(
                 "precision",
-                dist.Gamma(
-                    self.config.prior_precision_shape,
-                    self.config.prior_precision_rate
-                )
+                dist.Gamma(self.config.prior_precision_shape, self.config.prior_precision_rate),
             )
             epsilon = 1e-6
-            y_scaled = (responses - self.config.response_lower_bound) / \
-                       (self.config.response_upper_bound - self.config.response_lower_bound)
+            y_scaled = (responses - self.config.response_lower_bound) / (
+                self.config.response_upper_bound - self.config.response_lower_bound
+            )
             y_scaled = jnp.clip(y_scaled, epsilon, 1 - epsilon)
             mu = jax.nn.sigmoid(linear_pred)
             mu = jnp.clip(mu, epsilon, 1 - epsilon)
@@ -279,7 +289,7 @@ class IdealPointEstimator(BaseIdealPointModel):
     def fit(
         self,
         # Data (can pass IdealPointData or raw arrays)
-        data: Union['IdealPointData', np.ndarray] = None,
+        data: Union["IdealPointData", np.ndarray] = None,
         person_ids: Optional[np.ndarray] = None,
         item_ids: Optional[np.ndarray] = None,
         responses: Optional[np.ndarray] = None,
@@ -287,25 +297,26 @@ class IdealPointEstimator(BaseIdealPointModel):
         item_covariates: Optional[Union[pd.DataFrame, np.ndarray]] = None,
         timepoints: Optional[np.ndarray] = None,
         # Inference method
-        inference: Literal['vi', 'mcmc', 'map'] = 'vi',
+        inference: Literal["vi", "mcmc", "map"] = "vi",
         # Inference-specific parameters
         num_samples: int = 1000,
         num_warmup: int = 500,
         num_chains: int = 1,
         vi_steps: int = 10000,
-        vi_optimizer: str = 'adam',
+        vi_optimizer: str = "adam",
         vi_lr: float = 0.01,
         map_steps: int = 5000,
-        map_optimizer: str = 'adam',
+        map_optimizer: str = "adam",
         map_lr: float = 0.01,
         # Runtime/hardware
-        device: str = 'auto',
+        device: str = "auto",
+        max_cpu_chains: Optional[int] = None,
         progress_bar: bool = True,
         random_seed: Optional[int] = None,
         # Advanced
-        chain_method: str = 'parallel',
-        guide_type: str = 'normal',
-        **kwargs
+        chain_method: str = "parallel",
+        guide_type: str = "normal",
+        **kwargs,
     ) -> IdealPointResults:
         """
         Fit the ideal point model using specified inference method.
@@ -358,6 +369,13 @@ class IdealPointEstimator(BaseIdealPointModel):
         ------------------
         device : str, default='auto'
             Device to use: 'auto', 'cpu', 'gpu', 'tpu'
+        max_cpu_chains : int, optional
+            Maximum number of CPU cores/chains to use for parallel MCMC.
+            If None, automatically determined based on available cores (typically 4).
+            Only relevant when using device='cpu' or device='auto' with MCMC inference.
+            This parameter controls runtime parallelization and does not affect
+            XLA core detection (use IDEALIST_MAX_CPU_CORES environment variable
+            for that).
         progress_bar : bool, default=True
             Show progress bar during fitting
         random_seed : int, optional
@@ -394,11 +412,15 @@ class IdealPointEstimator(BaseIdealPointModel):
         >>>
         >>> # Fit with MCMC (more accurate)
         >>> results = estimator.fit(data, inference='mcmc', num_samples=2000, num_chains=4)
+        >>>
+        >>> # Fit with MCMC using limited CPU cores
+        >>> results = estimator.fit(data, inference='mcmc', device='cpu', max_cpu_chains=4)
         """
         start_time = time.time()
 
         # Handle IdealPointData input (convenience)
         from ..data.loaders import IdealPointData
+
         if isinstance(data, IdealPointData):
             person_ids = data.person_ids
             item_ids = data.item_ids
@@ -433,7 +455,8 @@ class IdealPointEstimator(BaseIdealPointModel):
             # Validate required arrays
             if person_ids is None or item_ids is None or responses is None:
                 raise ValueError(
-                    "Must provide either 'data' (IdealPointData) or all of person_ids, item_ids, and responses"
+                    "Must provide either 'data' (IdealPointData) or all of "
+                    "person_ids, item_ids, and responses"
                 )
 
         # Store dimensions
@@ -443,6 +466,7 @@ class IdealPointEstimator(BaseIdealPointModel):
         # Auto-detect response type if not specified
         if self.config.response_type is None:
             from ..data import detect_response_type
+
             detected_type, detected_n_categories, detected_bounds = detect_response_type(responses)
 
             # Update config with detected values
@@ -460,7 +484,11 @@ class IdealPointEstimator(BaseIdealPointModel):
                     val_to_idx = {val: idx for idx, val in enumerate(sorted(unique_vals))}
                     responses = np.array([val_to_idx[val] for val in responses])
                     if progress_bar:
-                        logger.info(f"Remapped ordinal responses to 0-indexed (original range: [{unique_vals[0]:.0f}, {unique_vals[-1]:.0f}])")
+                        logger.info(
+                            f"Remapped ordinal responses to 0-indexed "
+                            f"(original range: [{unique_vals[0]:.0f}, "
+                            f"{unique_vals[-1]:.0f}])"
+                        )
 
             # Print detection info
             if progress_bar:
@@ -471,26 +499,38 @@ class IdealPointEstimator(BaseIdealPointModel):
                     msg += f" (bounds={detected_bounds})"
                 logger.info(msg)
 
+        # Validate response data against the specified response type
+        from ..data.loaders import validate_response_data
+
+        validate_response_data(
+            responses=responses,
+            response_type=self.config.response_type,
+            n_categories=self.config.n_categories,
+            response_bounds=self.config.response_bounds,
+        )
+
         # Auto-select device and parallelization strategy
-        if device == 'auto':
+        if device == "auto":
+            # Use user-specified max_cpu_chains or default to 4
+            default_max_chains = max_cpu_chains if max_cpu_chains is not None else 4
             strategy = DeviceManager.auto_select_strategy(
                 inference_method=inference,
                 n_persons=self.config.n_persons,
                 n_items=self.config.n_items,
                 n_obs=len(responses),
-                use_device='auto',
-                max_cpu_chains=4,  # Reasonable default
+                use_device="auto",
+                max_cpu_chains=default_max_chains,
             )
 
             # Apply strategy (sets up parallelization)
             DeviceManager.apply_strategy(strategy)
 
             # Use recommended device
-            device = strategy['device']
+            device = strategy["device"]
 
             # Use recommended num_chains for MCMC
-            if inference == 'mcmc' and num_chains == 1 and strategy.get('num_chains'):
-                num_chains = strategy['num_chains']
+            if inference == "mcmc" and num_chains == 1 and strategy.get("num_chains"):
+                num_chains = strategy["num_chains"]
                 if progress_bar:
                     logger.info(f"Auto-selected {num_chains} chains for MCMC")
 
@@ -499,8 +539,8 @@ class IdealPointEstimator(BaseIdealPointModel):
                 logger.info(f"Auto-configuration: {strategy['reason']}")
 
         # Setup device
-        use_gpu = (device == 'gpu')
-        use_tpu = (device == 'tpu')
+        use_gpu = device == "gpu"
+        use_tpu = device == "tpu"
         actual_device = DeviceManager.setup_device(
             use_gpu=use_gpu,
             use_tpu=use_tpu,
@@ -522,7 +562,9 @@ class IdealPointEstimator(BaseIdealPointModel):
         else:
             responses_jax = jnp.array(responses)
 
-        person_covariates_jax = jnp.array(person_covariates) if person_covariates is not None else None
+        person_covariates_jax = (
+            jnp.array(person_covariates) if person_covariates is not None else None
+        )
         item_covariates_jax = jnp.array(item_covariates) if item_covariates is not None else None
         timepoints_jax = jnp.array(timepoints, dtype=jnp.int32) if timepoints is not None else None
 
@@ -538,28 +580,57 @@ class IdealPointEstimator(BaseIdealPointModel):
         seed = random_seed if random_seed is not None else 0
         rng_key = jax.random.PRNGKey(seed)
 
-        if inference == 'map':
+        if inference == "map":
             logger.info("Using MAP inference (point estimation)...")
-            results = self._fit_map(
-                rng_key, person_ids_jax, item_ids_jax, responses_jax,
-                person_covariates_jax, item_covariates_jax, timepoints_jax,
-                map_optimizer, map_steps, map_lr, num_samples, progress_bar
+            self._fit_map(
+                rng_key,
+                person_ids_jax,
+                item_ids_jax,
+                responses_jax,
+                person_covariates_jax,
+                item_covariates_jax,
+                timepoints_jax,
+                map_optimizer,
+                map_steps,
+                map_lr,
+                num_samples,
+                progress_bar,
             )
 
-        elif inference == 'vi':
+        elif inference == "vi":
             logger.info(f"Using Variational Inference (guide: {guide_type})...")
-            results = self._fit_vi(
-                rng_key, person_ids_jax, item_ids_jax, responses_jax,
-                person_covariates_jax, item_covariates_jax, timepoints_jax,
-                guide_type, vi_optimizer, vi_steps, vi_lr, num_samples, progress_bar
+            self._fit_vi(
+                rng_key,
+                person_ids_jax,
+                item_ids_jax,
+                responses_jax,
+                person_covariates_jax,
+                item_covariates_jax,
+                timepoints_jax,
+                guide_type,
+                vi_optimizer,
+                vi_steps,
+                vi_lr,
+                num_samples,
+                progress_bar,
             )
 
-        elif inference == 'mcmc':
+        elif inference == "mcmc":
             logger.info("Using MCMC inference (NUTS)...")
-            results = self._fit_mcmc(
-                rng_key, person_ids_jax, item_ids_jax, responses_jax,
-                person_covariates_jax, item_covariates_jax, timepoints_jax,
-                num_warmup, num_samples, num_chains, chain_method, progress_bar, **kwargs
+            self._fit_mcmc(
+                rng_key,
+                person_ids_jax,
+                item_ids_jax,
+                responses_jax,
+                person_covariates_jax,
+                item_covariates_jax,
+                timepoints_jax,
+                num_warmup,
+                num_samples,
+                num_chains,
+                chain_method,
+                progress_bar,
+                **kwargs,
             )
 
         else:
@@ -568,11 +639,7 @@ class IdealPointEstimator(BaseIdealPointModel):
         # Compute results
         computation_time = time.time() - start_time
 
-        results_obj = self._compute_results(
-            self.posterior_samples,
-            computation_time,
-            inference
-        )
+        results_obj = self._compute_results(self.posterior_samples, computation_time, inference)
 
         # Store original names in results if available
         results_obj._person_names = self._person_names
@@ -585,9 +652,17 @@ class IdealPointEstimator(BaseIdealPointModel):
     def _fit_map(
         self,
         rng_key,
-        person_ids, item_ids, responses,
-        person_covariates, item_covariates, timepoints,
-        optimizer, steps, lr, num_samples, progress_bar
+        person_ids,
+        item_ids,
+        responses,
+        person_covariates,
+        item_covariates,
+        timepoints,
+        optimizer,
+        steps,
+        lr,
+        num_samples,
+        progress_bar,
     ):
         """MAP estimation via SVI with point mass guide."""
         from numpyro.infer import SVI, Trace_ELBO
@@ -598,11 +673,11 @@ class IdealPointEstimator(BaseIdealPointModel):
         guide = AutoDelta(self._build_model)
 
         # Select optimizer
-        if optimizer == 'adam':
+        if optimizer == "adam":
             opt = Adam(lr)
-        elif optimizer == 'sgd':
+        elif optimizer == "sgd":
             opt = SGD(lr)
-        elif optimizer == 'adagrad':
+        elif optimizer == "adagrad":
             opt = Adagrad(lr)
         else:
             raise ValueError(f"Unknown optimizer: {optimizer}")
@@ -612,14 +687,15 @@ class IdealPointEstimator(BaseIdealPointModel):
 
         # Run optimization
         svi_result = svi.run(
-            rng_key, steps,
+            rng_key,
+            steps,
             person_ids=person_ids,
             item_ids=item_ids,
             responses=responses,
             person_covariates=person_covariates,
             item_covariates=item_covariates,
             timepoints=timepoints,
-            progress_bar=progress_bar
+            progress_bar=progress_bar,
         )
 
         self.svi = svi
@@ -638,7 +714,7 @@ class IdealPointEstimator(BaseIdealPointModel):
             responses=responses,
             person_covariates=person_covariates,
             item_covariates=item_covariates,
-            timepoints=timepoints
+            timepoints=timepoints,
         )
 
         return svi_result
@@ -646,30 +722,39 @@ class IdealPointEstimator(BaseIdealPointModel):
     def _fit_vi(
         self,
         rng_key,
-        person_ids, item_ids, responses,
-        person_covariates, item_covariates, timepoints,
-        guide_type, optimizer, steps, lr, num_samples, progress_bar
+        person_ids,
+        item_ids,
+        responses,
+        person_covariates,
+        item_covariates,
+        timepoints,
+        guide_type,
+        optimizer,
+        steps,
+        lr,
+        num_samples,
+        progress_bar,
     ):
         """Variational inference."""
         from numpyro.infer import SVI, Trace_ELBO
         from numpyro.optim import Adam, SGD, Adagrad
 
         # Select guide
-        if guide_type == 'normal':
+        if guide_type == "normal":
             guide = AutoNormal(self._build_model)
-        elif guide_type == 'mvn':
+        elif guide_type == "mvn":
             guide = AutoMultivariateNormal(self._build_model)
-        elif guide_type == 'lowrank_mvn':
+        elif guide_type == "lowrank_mvn":
             guide = AutoLowRankMultivariateNormal(self._build_model)
         else:
             raise ValueError(f"Unknown guide type: {guide_type}")
 
         # Select optimizer
-        if optimizer == 'adam':
+        if optimizer == "adam":
             opt = Adam(lr)
-        elif optimizer == 'sgd':
+        elif optimizer == "sgd":
             opt = SGD(lr)
-        elif optimizer == 'adagrad':
+        elif optimizer == "adagrad":
             opt = Adagrad(lr)
         else:
             raise ValueError(f"Unknown optimizer: {optimizer}")
@@ -679,14 +764,15 @@ class IdealPointEstimator(BaseIdealPointModel):
 
         # Run optimization
         svi_result = svi.run(
-            rng_key, steps,
+            rng_key,
+            steps,
             person_ids=person_ids,
             item_ids=item_ids,
             responses=responses,
             person_covariates=person_covariates,
             item_covariates=item_covariates,
             timepoints=timepoints,
-            progress_bar=progress_bar
+            progress_bar=progress_bar,
         )
 
         self.svi = svi
@@ -702,7 +788,7 @@ class IdealPointEstimator(BaseIdealPointModel):
             responses=responses,
             person_covariates=person_covariates,
             item_covariates=item_covariates,
-            timepoints=timepoints
+            timepoints=timepoints,
         )
 
         return svi_result
@@ -710,10 +796,18 @@ class IdealPointEstimator(BaseIdealPointModel):
     def _fit_mcmc(
         self,
         rng_key,
-        person_ids, item_ids, responses,
-        person_covariates, item_covariates, timepoints,
-        num_warmup, num_samples, num_chains, chain_method, progress_bar,
-        **kwargs
+        person_ids,
+        item_ids,
+        responses,
+        person_covariates,
+        item_covariates,
+        timepoints,
+        num_warmup,
+        num_samples,
+        num_chains,
+        chain_method,
+        progress_bar,
+        **kwargs,
     ):
         """MCMC sampling via NUTS."""
         nuts_kernel = NUTS(
@@ -729,7 +823,7 @@ class IdealPointEstimator(BaseIdealPointModel):
             num_chains=num_chains,
             chain_method=chain_method,
             progress_bar=progress_bar,
-            **kwargs
+            **kwargs,
         )
 
         mcmc.run(
@@ -794,8 +888,7 @@ class IdealPointEstimator(BaseIdealPointModel):
         for chain_idx in range(num_chains):
             # Extract this chain's samples
             chain_samples = {
-                key: samples_by_chain[key][chain_idx]
-                for key in samples_by_chain.keys()
+                key: samples_by_chain[key][chain_idx] for key in samples_by_chain.keys()
             }
 
             # Check sign using discrimination sum (more stable than mean)
@@ -819,13 +912,11 @@ class IdealPointEstimator(BaseIdealPointModel):
         # Concatenate all fixed chains along the sample dimension
         concatenated = {}
         for key in fixed_chains.keys():
-            # Stack chains: (num_chains, num_samples, ...) then reshape to (num_chains * num_samples, ...)
+            # Stack chains: (num_chains, num_samples, ...)
+            # then reshape to (num_chains * num_samples, ...)
             stacked = jnp.stack(fixed_chains[key], axis=0)
             # Concatenate along chain dimension
-            concatenated[key] = jnp.concatenate(
-                [stacked[i] for i in range(num_chains)],
-                axis=0
-            )
+            concatenated[key] = jnp.concatenate([stacked[i] for i in range(num_chains)], axis=0)
 
         return concatenated
 
@@ -848,10 +939,13 @@ class IdealPointEstimator(BaseIdealPointModel):
             if "theta_innovations" in posterior_samples:
                 innovations_samples = posterior_samples["theta_innovations"]
                 cumulative_innovations = jnp.cumsum(innovations_samples, axis=1)
-                temporal_samples = jnp.concatenate([
-                    theta_0_samples[:, None, :, :],
-                    theta_0_samples[:, None, :, :] + cumulative_innovations
-                ], axis=1)
+                temporal_samples = jnp.concatenate(
+                    [
+                        theta_0_samples[:, None, :, :],
+                        theta_0_samples[:, None, :, :] + cumulative_innovations,
+                    ],
+                    axis=1,
+                )
                 temporal_ideal_points_mean = np.array(jnp.mean(temporal_samples, axis=0))
             ideal_points_samples = theta_0_samples
         else:
@@ -878,15 +972,24 @@ class IdealPointEstimator(BaseIdealPointModel):
         # Extract covariate effects if present
         person_covariate_effects = None
         if "person_covariate_effects" in posterior_samples:
-            person_covariate_effects = np.array(jnp.mean(posterior_samples["person_covariate_effects"], axis=0))
+            person_covariate_effects = np.array(
+                jnp.mean(posterior_samples["person_covariate_effects"], axis=0)
+            )
 
         item_covariate_effects = None
-        if "item_difficulty_covariate_effects" in posterior_samples or "item_discrimination_covariate_effects" in posterior_samples:
+        if (
+            "item_difficulty_covariate_effects" in posterior_samples
+            or "item_discrimination_covariate_effects" in posterior_samples
+        ):
             item_covariate_effects = {}
             if "item_difficulty_covariate_effects" in posterior_samples:
-                item_covariate_effects['difficulty'] = np.array(jnp.mean(posterior_samples["item_difficulty_covariate_effects"], axis=0))
+                item_covariate_effects["difficulty"] = np.array(
+                    jnp.mean(posterior_samples["item_difficulty_covariate_effects"], axis=0)
+                )
             if "item_discrimination_covariate_effects" in posterior_samples:
-                item_covariate_effects['discrimination'] = np.array(jnp.mean(posterior_samples["item_discrimination_covariate_effects"], axis=0))
+                item_covariate_effects["discrimination"] = np.array(
+                    jnp.mean(posterior_samples["item_discrimination_covariate_effects"], axis=0)
+                )
 
         # Convergence info
         convergence_info = {
@@ -898,11 +1001,13 @@ class IdealPointEstimator(BaseIdealPointModel):
             # Compute comprehensive MCMC diagnostics
             mcmc_diagnostics = self._compute_mcmc_diagnostics(posterior_samples)
 
-            convergence_info.update({
-                "num_chains": self.mcmc.num_chains,
-                "num_warmup": self.mcmc.num_warmup,
-                "mcmc_diagnostics": mcmc_diagnostics,
-            })
+            convergence_info.update(
+                {
+                    "num_chains": self.mcmc.num_chains,
+                    "num_warmup": self.mcmc.num_warmup,
+                    "mcmc_diagnostics": mcmc_diagnostics,
+                }
+            )
 
         # Create results
         results = IdealPointResults(
@@ -951,58 +1056,63 @@ class IdealPointEstimator(BaseIdealPointModel):
         diagnostics = {}
 
         # Get MCMC extra fields (NUTS diagnostics)
-        if hasattr(self.mcmc, 'get_extra_fields'):
+        if hasattr(self.mcmc, "get_extra_fields"):
             extra_fields = self.mcmc.get_extra_fields()
 
             # NUTS acceptance probability
-            if 'accept_prob' in extra_fields:
-                accept_prob = extra_fields['accept_prob']
-                diagnostics['acceptance_rate'] = {
-                    'mean': float(np.mean(accept_prob)),
-                    'min': float(np.min(accept_prob)),
-                    'max': float(np.max(accept_prob)),
-                    'std': float(np.std(accept_prob)),
+            if "accept_prob" in extra_fields:
+                accept_prob = extra_fields["accept_prob"]
+                diagnostics["acceptance_rate"] = {
+                    "mean": float(np.mean(accept_prob)),
+                    "min": float(np.min(accept_prob)),
+                    "max": float(np.max(accept_prob)),
+                    "std": float(np.std(accept_prob)),
                 }
 
             # Divergences
-            if 'diverging' in extra_fields:
-                n_divergences = int(np.sum(extra_fields['diverging']))
-                total_samples = extra_fields['diverging'].size
-                diagnostics['divergences'] = {
-                    'n_divergences': n_divergences,
-                    'total_samples': total_samples,
-                    'divergence_rate': float(n_divergences / total_samples),
+            if "diverging" in extra_fields:
+                n_divergences = int(np.sum(extra_fields["diverging"]))
+                total_samples = extra_fields["diverging"].size
+                diagnostics["divergences"] = {
+                    "n_divergences": n_divergences,
+                    "total_samples": total_samples,
+                    "divergence_rate": float(n_divergences / total_samples),
                 }
 
             # Tree depth
-            if 'tree_depth' in extra_fields:
-                tree_depth = extra_fields['tree_depth']
-                diagnostics['tree_depth'] = {
-                    'mean': float(np.mean(tree_depth)),
-                    'max': int(np.max(tree_depth)),
-                    'max_treedepth_reached': int(np.sum(tree_depth >= 10)),  # Default max is 10
+            if "tree_depth" in extra_fields:
+                tree_depth = extra_fields["tree_depth"]
+                diagnostics["tree_depth"] = {
+                    "mean": float(np.mean(tree_depth)),
+                    "max": int(np.max(tree_depth)),
+                    "max_treedepth_reached": int(np.sum(tree_depth >= 10)),  # Default max is 10
                 }
 
             # Energy diagnostics (if available)
-            if 'energy' in extra_fields:
-                energy = extra_fields['energy']
-                diagnostics['energy'] = {
-                    'mean': float(np.mean(energy)),
-                    'std': float(np.std(energy)),
+            if "energy" in extra_fields:
+                energy = extra_fields["energy"]
+                diagnostics["energy"] = {
+                    "mean": float(np.mean(energy)),
+                    "std": float(np.std(energy)),
                 }
 
         # Compute ESS and Rhat for key parameters
         param_diagnostics = {}
 
-        for param_name in ['ideal_points', 'difficulty', 'discrimination',
-                           'theta_initial', 'theta_innovations']:
+        for param_name in [
+            "ideal_points",
+            "difficulty",
+            "discrimination",
+            "theta_initial",
+            "theta_innovations",
+        ]:
             if param_name not in posterior_samples:
                 continue
 
             samples = posterior_samples[param_name]
 
             # Convert to numpy if JAX array
-            if hasattr(samples, 'copy'):
+            if hasattr(samples, "copy"):
                 samples = np.array(samples)
 
             # Reshape for ESS/Rhat computation
@@ -1026,7 +1136,7 @@ class IdealPointEstimator(BaseIdealPointModel):
                         ess_bulk = effective_sample_size(samples_reshaped)
                         ess_bulk_min = float(np.min(ess_bulk))
                         ess_bulk_mean = float(np.mean(ess_bulk))
-                    except Exception as e:
+                    except Exception:  # noqa: S110
                         ess_bulk_min = None
                         ess_bulk_mean = None
 
@@ -1035,33 +1145,39 @@ class IdealPointEstimator(BaseIdealPointModel):
                         rhat = split_gelman_rubin(samples_reshaped)
                         rhat_max = float(np.max(rhat))
                         rhat_mean = float(np.mean(rhat))
-                    except Exception as e:
+                    except Exception:  # noqa: S110
                         rhat_max = None
                         rhat_mean = None
 
                     param_diagnostics[param_name] = {
-                        'ess_bulk_min': ess_bulk_min,
-                        'ess_bulk_mean': ess_bulk_mean,
-                        'rhat_max': rhat_max,
-                        'rhat_mean': rhat_mean,
-                        'shape': samples.shape,
+                        "ess_bulk_min": ess_bulk_min,
+                        "ess_bulk_mean": ess_bulk_mean,
+                        "rhat_max": rhat_max,
+                        "rhat_mean": rhat_mean,
+                        "shape": samples.shape,
                     }
 
-        diagnostics['parameters'] = param_diagnostics
+        diagnostics["parameters"] = param_diagnostics
 
         # Summary statistics
         if param_diagnostics:
-            all_ess_mins = [v['ess_bulk_min'] for v in param_diagnostics.values()
-                            if v['ess_bulk_min'] is not None]
-            all_rhat_maxes = [v['rhat_max'] for v in param_diagnostics.values()
-                              if v['rhat_max'] is not None]
+            all_ess_mins = [
+                v["ess_bulk_min"]
+                for v in param_diagnostics.values()
+                if v["ess_bulk_min"] is not None
+            ]
+            all_rhat_maxes = [
+                v["rhat_max"] for v in param_diagnostics.values() if v["rhat_max"] is not None
+            ]
 
             if all_ess_mins:
-                diagnostics['summary'] = {
-                    'min_ess': float(np.min(all_ess_mins)),
-                    'max_rhat': float(np.max(all_rhat_maxes)) if all_rhat_maxes else None,
-                    'all_rhat_below_1_1': all(r < 1.1 for r in all_rhat_maxes) if all_rhat_maxes else None,
-                    'all_ess_above_400': all(e > 400 for e in all_ess_mins),
+                diagnostics["summary"] = {
+                    "min_ess": float(np.min(all_ess_mins)),
+                    "max_rhat": float(np.max(all_rhat_maxes)) if all_rhat_maxes else None,
+                    "all_rhat_below_1_1": (
+                        all(r < 1.1 for r in all_rhat_maxes) if all_rhat_maxes else None
+                    ),
+                    "all_ess_above_400": all(e > 400 for e in all_ess_mins),
                 }
 
         return diagnostics
@@ -1072,18 +1188,18 @@ class IdealPointEstimator(BaseIdealPointModel):
 
         Requires that model was fit with inference='mcmc' and diagnostics are available.
         """
-        if not hasattr(self, 'results') or self.results is None:
+        if not hasattr(self, "results") or self.results is None:
             print("No results available. Please fit the model first.")
             return
 
         conv_info = self.results.convergence_info
 
-        if 'mcmc_diagnostics' not in conv_info:
+        if "mcmc_diagnostics" not in conv_info:
             print("MCMC diagnostics not available.")
             print("Model may not have been fit with MCMC inference.")
             return
 
-        diag = conv_info['mcmc_diagnostics']
+        diag = conv_info["mcmc_diagnostics"]
 
         print("=" * 80)
         print("MCMC DIAGNOSTICS")
@@ -1097,29 +1213,29 @@ class IdealPointEstimator(BaseIdealPointModel):
         print()
 
         # Acceptance rate
-        if 'acceptance_rate' in diag:
-            acc = diag['acceptance_rate']
+        if "acceptance_rate" in diag:
+            acc = diag["acceptance_rate"]
             print("NUTS Acceptance Probability:")
             print(f"  Mean: {acc['mean']:.3f}")
             print(f"  Range: [{acc['min']:.3f}, {acc['max']:.3f}]")
 
             # Interpret
-            if acc['mean'] < 0.6:
+            if acc["mean"] < 0.6:
                 print("  WARNING: Low acceptance rate! Consider increasing adapt_delta.")
-            elif acc['mean'] > 0.95:
+            elif acc["mean"] > 0.95:
                 print("  NOTE: Very high acceptance rate. Could increase efficiency.")
             else:
                 print("  STATUS: Good acceptance rate.")
             print()
 
         # Divergences
-        if 'divergences' in diag:
-            div = diag['divergences']
-            print(f"Divergences:")
+        if "divergences" in diag:
+            div = diag["divergences"]
+            print("Divergences:")
             print(f"  Count: {div['n_divergences']} / {div['total_samples']}")
             print(f"  Rate: {div['divergence_rate']:.2%}")
 
-            if div['n_divergences'] > 0:
+            if div["n_divergences"] > 0:
                 print("  WARNING: Divergences detected! Results may be unreliable.")
                 print("  Consider:")
                 print("    - Increasing adapt_delta (e.g., target_accept_prob=0.9)")
@@ -1130,46 +1246,55 @@ class IdealPointEstimator(BaseIdealPointModel):
             print()
 
         # Tree depth
-        if 'tree_depth' in diag:
-            tree = diag['tree_depth']
-            print(f"Tree Depth:")
+        if "tree_depth" in diag:
+            tree = diag["tree_depth"]
+            print("Tree Depth:")
             print(f"  Mean: {tree['mean']:.1f}")
             print(f"  Max: {tree['max']}")
 
-            if tree['max_treedepth_reached'] > 0:
-                pct = tree['max_treedepth_reached'] / diag.get('divergences', {}).get('total_samples', 1)
-                print(f"  Max tree depth reached: {tree['max_treedepth_reached']} times ({pct:.1%})")
+            if tree["max_treedepth_reached"] > 0:
+                pct = tree["max_treedepth_reached"] / diag.get("divergences", {}).get(
+                    "total_samples", 1
+                )
+                print(
+                    f"  Max tree depth reached: {tree['max_treedepth_reached']} times ({pct:.1%})"
+                )
                 print("  NOTE: Consider increasing max_tree_depth if this is frequent.")
             print()
 
         # Parameter-specific diagnostics
-        if 'parameters' in diag and diag['parameters']:
+        if "parameters" in diag and diag["parameters"]:
             print("=" * 80)
             print("PARAMETER DIAGNOSTICS")
             print("=" * 80)
             print()
 
-            print(f"{'Parameter':<25} {'Min ESS':>10} {'Mean ESS':>10} {'Max Rhat':>10} {'Mean Rhat':>10}")
+            print(
+                f"{'Parameter':<25} {'Min ESS':>10} {'Mean ESS':>10} "
+                f"{'Max Rhat':>10} {'Mean Rhat':>10}"
+            )
             print("-" * 80)
 
-            for param_name, param_diag in diag['parameters'].items():
-                ess_min = param_diag.get('ess_bulk_min')
-                ess_mean = param_diag.get('ess_bulk_mean')
-                rhat_max = param_diag.get('rhat_max')
-                rhat_mean = param_diag.get('rhat_mean')
+            for param_name, param_diag in diag["parameters"].items():
+                ess_min = param_diag.get("ess_bulk_min")
+                ess_mean = param_diag.get("ess_bulk_mean")
+                rhat_max = param_diag.get("rhat_max")
+                rhat_mean = param_diag.get("rhat_mean")
 
                 ess_min_str = f"{ess_min:10.1f}" if ess_min is not None else "       N/A"
                 ess_mean_str = f"{ess_mean:10.1f}" if ess_mean is not None else "       N/A"
                 rhat_max_str = f"{rhat_max:10.4f}" if rhat_max is not None else "       N/A"
                 rhat_mean_str = f"{rhat_mean:10.4f}" if rhat_mean is not None else "       N/A"
 
-                print(f"{param_name:<25} {ess_min_str} {ess_mean_str} {rhat_max_str} {rhat_mean_str}")
+                print(
+                    f"{param_name:<25} {ess_min_str} {ess_mean_str} {rhat_max_str} {rhat_mean_str}"
+                )
 
             print()
 
         # Summary assessment
-        if 'summary' in diag:
-            summ = diag['summary']
+        if "summary" in diag:
+            summ = diag["summary"]
             print("=" * 80)
             print("OVERALL ASSESSMENT")
             print("=" * 80)
@@ -1177,18 +1302,18 @@ class IdealPointEstimator(BaseIdealPointModel):
 
             print(f"Minimum ESS (across all parameters): {summ['min_ess']:.1f}")
 
-            if summ['min_ess'] < 100:
+            if summ["min_ess"] < 100:
                 print("  WARNING: Very low ESS! Need more samples or better mixing.")
-            elif summ['min_ess'] < 400:
+            elif summ["min_ess"] < 400:
                 print("  CAUTION: Low ESS. Consider running longer.")
             else:
                 print("  STATUS: Adequate ESS.")
             print()
 
-            if summ['max_rhat'] is not None:
+            if summ["max_rhat"] is not None:
                 print(f"Maximum Rhat (across all parameters): {summ['max_rhat']:.4f}")
 
-                if summ['all_rhat_below_1_1']:
+                if summ["all_rhat_below_1_1"]:
                     print("  STATUS: All Rhat < 1.1 (convergence criteria met).")
                 else:
                     print("  WARNING: Some Rhat >= 1.1 (convergence issues!).")
@@ -1200,12 +1325,13 @@ class IdealPointEstimator(BaseIdealPointModel):
 
             # Overall verdict
             print("VERDICT:")
-            if (summ['min_ess'] >= 400 and
-                summ.get('all_rhat_below_1_1', False) and
-                diag.get('divergences', {}).get('n_divergences', 0) == 0):
+            if (
+                summ["min_ess"] >= 400
+                and summ.get("all_rhat_below_1_1", False)
+                and diag.get("divergences", {}).get("n_divergences", 0) == 0
+            ):
                 print("  PASS: MCMC diagnostics look good!")
-            elif (summ['min_ess'] >= 200 and
-                  summ.get('max_rhat', 1.1) < 1.15):
+            elif summ["min_ess"] >= 200 and summ.get("max_rhat", 1.1) < 1.15:
                 print("  ACCEPTABLE: MCMC diagnostics are reasonable.")
                 print("  Consider running longer for publication-quality results.")
             else:
@@ -1293,26 +1419,48 @@ class IdealPointEstimator(BaseIdealPointModel):
 
         # Create save dictionary with only picklable components
         save_dict = {
-            'config': asdict(self.config) if hasattr(self.config, '__dataclass_fields__') else self.config.__dict__,
-            'posterior_samples': {
-                k: np.array(v) for k, v in self.posterior_samples.items()
-            },
-            'results': asdict(self.results) if self.results and hasattr(self.results, '__dataclass_fields__') else None,
-            'person_ids_train': np.array(self.person_ids_train) if self.person_ids_train is not None else None,
-            'item_ids_train': np.array(self.item_ids_train) if self.item_ids_train is not None else None,
-            'responses_train': np.array(self.responses_train) if self.responses_train is not None else None,
-            'person_covariates_train': np.array(self.person_covariates_train) if self.person_covariates_train is not None else None,
-            'item_covariates_train': np.array(self.item_covariates_train) if self.item_covariates_train is not None else None,
-            'timepoints_train': np.array(self.timepoints_train) if self.timepoints_train is not None else None,
+            "config": (
+                asdict(self.config)
+                if hasattr(self.config, "__dataclass_fields__")
+                else self.config.__dict__
+            ),
+            "posterior_samples": {k: np.array(v) for k, v in self.posterior_samples.items()},
+            "results": (
+                asdict(self.results)
+                if self.results and hasattr(self.results, "__dataclass_fields__")
+                else None
+            ),
+            "person_ids_train": (
+                np.array(self.person_ids_train) if self.person_ids_train is not None else None
+            ),
+            "item_ids_train": (
+                np.array(self.item_ids_train) if self.item_ids_train is not None else None
+            ),
+            "responses_train": (
+                np.array(self.responses_train) if self.responses_train is not None else None
+            ),
+            "person_covariates_train": (
+                np.array(self.person_covariates_train)
+                if self.person_covariates_train is not None
+                else None
+            ),
+            "item_covariates_train": (
+                np.array(self.item_covariates_train)
+                if self.item_covariates_train is not None
+                else None
+            ),
+            "timepoints_train": (
+                np.array(self.timepoints_train) if self.timepoints_train is not None else None
+            ),
         }
 
         # Do NOT save self.svi, self.guide, self.mcmc - they contain unpicklable closures
 
-        with open(filepath, 'wb') as f:
+        with open(filepath, "wb") as f:
             pickle.dump(save_dict, f, protocol=pickle.HIGHEST_PROTOCOL)
 
     @classmethod
-    def load(cls, filepath: str) -> 'IdealPointEstimator':
+    def load(cls, filepath: str) -> "IdealPointEstimator":
         """
         Load fitted model from disk.
 
@@ -1327,19 +1475,19 @@ class IdealPointEstimator(BaseIdealPointModel):
             Loaded fitted model
         """
         import pickle
-        from dataclasses import fields
 
-        with open(filepath, 'rb') as f:
+        with open(filepath, "rb") as f:
             save_dict = pickle.load(f)
 
         # Reconstruct config
-        config_dict = save_dict['config']
+        config_dict = save_dict["config"]
         # Convert enum strings back to enums if needed
         from ..core.base import ResponseType, IdentificationConstraint
-        if 'response_type' in config_dict and isinstance(config_dict['response_type'], str):
-            config_dict['response_type'] = ResponseType(config_dict['response_type'])
-        if 'identification' in config_dict and isinstance(config_dict['identification'], str):
-            config_dict['identification'] = IdentificationConstraint(config_dict['identification'])
+
+        if "response_type" in config_dict and isinstance(config_dict["response_type"], str):
+            config_dict["response_type"] = ResponseType(config_dict["response_type"])
+        if "identification" in config_dict and isinstance(config_dict["identification"], str):
+            config_dict["identification"] = IdentificationConstraint(config_dict["identification"])
 
         config = IdealPointConfig(**config_dict)
 
@@ -1348,20 +1496,44 @@ class IdealPointEstimator(BaseIdealPointModel):
 
         # Restore state
         model.posterior_samples = {
-            k: jnp.array(v) for k, v in save_dict['posterior_samples'].items()
+            k: jnp.array(v) for k, v in save_dict["posterior_samples"].items()
         }
 
         # Restore results
-        if save_dict['results'] is not None:
-            model.results = IdealPointResults(**save_dict['results'])
+        if save_dict["results"] is not None:
+            model.results = IdealPointResults(**save_dict["results"])
 
         # Restore training data
-        model.person_ids_train = jnp.array(save_dict['person_ids_train']) if save_dict['person_ids_train'] is not None else None
-        model.item_ids_train = jnp.array(save_dict['item_ids_train']) if save_dict['item_ids_train'] is not None else None
-        model.responses_train = jnp.array(save_dict['responses_train']) if save_dict['responses_train'] is not None else None
-        model.person_covariates_train = jnp.array(save_dict['person_covariates_train']) if save_dict['person_covariates_train'] is not None else None
-        model.item_covariates_train = jnp.array(save_dict['item_covariates_train']) if save_dict['item_covariates_train'] is not None else None
-        model.timepoints_train = jnp.array(save_dict['timepoints_train']) if save_dict['timepoints_train'] is not None else None
+        model.person_ids_train = (
+            jnp.array(save_dict["person_ids_train"])
+            if save_dict["person_ids_train"] is not None
+            else None
+        )
+        model.item_ids_train = (
+            jnp.array(save_dict["item_ids_train"])
+            if save_dict["item_ids_train"] is not None
+            else None
+        )
+        model.responses_train = (
+            jnp.array(save_dict["responses_train"])
+            if save_dict["responses_train"] is not None
+            else None
+        )
+        model.person_covariates_train = (
+            jnp.array(save_dict["person_covariates_train"])
+            if save_dict["person_covariates_train"] is not None
+            else None
+        )
+        model.item_covariates_train = (
+            jnp.array(save_dict["item_covariates_train"])
+            if save_dict["item_covariates_train"] is not None
+            else None
+        )
+        model.timepoints_train = (
+            jnp.array(save_dict["timepoints_train"])
+            if save_dict["timepoints_train"] is not None
+            else None
+        )
 
         model._is_fitted = True
 

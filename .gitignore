@@ -87,3 +87,9 @@ dmypy.json
 /data/
 /experiments/
 /results/
+
+# Analysis and temporary files
+RESPONSE_TYPE_ANALYSIS.txt
+check_workflows.py
+*.analysis.txt
+*.notes.txt

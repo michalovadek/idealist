@@ -18,12 +18,13 @@ Key concepts:
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Optional, Dict, Any, Union, Tuple
+from typing import Optional, Dict, Any, Union
 import numpy as np
 
 
 class ResponseType(Enum):
     """Type of response data."""
+
     BINARY = "binary"  # Dichotomous responses (0/1)
     ORDINAL = "ordinal"  # Ordered categorical (0, 1, 2, ...)
     CONTINUOUS = "continuous"  # Continuous responses (e.g., test scores)
@@ -33,6 +34,7 @@ class ResponseType(Enum):
 
 class IdentificationConstraint(Enum):
     """Constraint for resolving model identifiability."""
+
     NONE = "none"  # No constraint (may have reflection/rotation invariance)
     FIX_FIRST_PERSON = "fix_first_person"  # Fix first person's ideal point to 0
     FIX_FIRST_TWO_PERSONS = "fix_first_two_persons"  # Fix first two persons (2D)
@@ -161,15 +163,21 @@ class IdealPointConfig:
 
         if self.response_type == ResponseType.BOUNDED_CONTINUOUS:
             if self.response_bounds is None:
-                raise ValueError("response_bounds must be specified for BOUNDED_CONTINUOUS responses")
+                raise ValueError(
+                    "response_bounds must be specified for BOUNDED_CONTINUOUS responses"
+                )
             if not isinstance(self.response_bounds, tuple) or len(self.response_bounds) != 2:
-                raise ValueError("response_bounds must be a tuple of (lower, upper) for BOUNDED_CONTINUOUS")
+                raise ValueError(
+                    "response_bounds must be a tuple of (lower, upper) for BOUNDED_CONTINUOUS"
+                )
             if self.response_bounds[0] >= self.response_bounds[1]:
                 raise ValueError("response_bounds lower must be < upper")
 
         # Validate temporal settings
         if self.temporal_dynamics and self.temporal_model not in ["random_walk", "ar1"]:
-            raise ValueError(f"temporal_model must be 'random_walk' or 'ar1', got '{self.temporal_model}'")
+            raise ValueError(
+                f"temporal_model must be 'random_walk' or 'ar1', got '{self.temporal_model}'"
+            )
 
     @property
     def response_lower_bound(self) -> float:
@@ -182,7 +190,7 @@ class IdealPointConfig:
         return self.response_bounds[1]
 
     @classmethod
-    def preset(cls, preset_name: str = "binary", **kwargs) -> 'IdealPointConfig':
+    def preset(cls, preset_name: str = "binary", **kwargs) -> "IdealPointConfig":
         """
         Create IdealPointConfig with smart defaults for common use cases.
 
@@ -235,8 +243,7 @@ class IdealPointConfig:
 
         if preset_name not in presets:
             raise ValueError(
-                f"Unknown preset '{preset_name}'. "
-                f"Available presets: {list(presets.keys())}"
+                f"Unknown preset '{preset_name}'. " f"Available presets: {list(presets.keys())}"
             )
 
         # Start with preset defaults, then override with user kwargs
@@ -308,7 +315,9 @@ class IdealPointResults:
     _person_names: Optional[list] = field(default=None, repr=False)
     _item_names: Optional[list] = field(default=None, repr=False)
 
-    def get_person_parameters(self, person_id: int, with_uncertainty: bool = False) -> Dict[str, Any]:
+    def get_person_parameters(
+        self, person_id: int, with_uncertainty: bool = False
+    ) -> Dict[str, Any]:
         """
         Get parameters for a specific person.
 
@@ -325,13 +334,13 @@ class IdealPointResults:
             Dictionary containing ideal point and optional uncertainty
         """
         result = {
-            'ideal_point': self.ideal_points[person_id],
+            "ideal_point": self.ideal_points[person_id],
         }
         if with_uncertainty and self.ideal_points_std is not None:
-            result['std'] = self.ideal_points_std[person_id]
+            result["std"] = self.ideal_points_std[person_id]
             if self.ideal_points_ci_lower is not None:
-                result['ci_lower'] = self.ideal_points_ci_lower[person_id]
-                result['ci_upper'] = self.ideal_points_ci_upper[person_id]
+                result["ci_lower"] = self.ideal_points_ci_lower[person_id]
+                result["ci_upper"] = self.ideal_points_ci_upper[person_id]
         return result
 
     def get_item_parameters(self, item_id: int, with_uncertainty: bool = False) -> Dict[str, Any]:
@@ -351,14 +360,14 @@ class IdealPointResults:
             Dictionary containing difficulty, discrimination, and optional uncertainty
         """
         result = {
-            'difficulty': self.difficulty[item_id],
-            'discrimination': self.discrimination[item_id],
+            "difficulty": self.difficulty[item_id],
+            "discrimination": self.discrimination[item_id],
         }
         if with_uncertainty:
             if self.difficulty_std is not None:
-                result['difficulty_std'] = self.difficulty_std[item_id]
+                result["difficulty_std"] = self.difficulty_std[item_id]
             if self.discrimination_std is not None:
-                result['discrimination_std'] = self.discrimination_std[item_id]
+                result["discrimination_std"] = self.discrimination_std[item_id]
         return result
 
     def to_dataframe(
@@ -405,9 +414,17 @@ class IdealPointResults:
 
         # Use stored names if available, otherwise generate defaults
         if person_names is None:
-            person_names = self._person_names if self._person_names is not None else [f"Person_{i}" for i in range(n_persons)]
+            person_names = (
+                self._person_names
+                if self._person_names is not None
+                else [f"Person_{i}" for i in range(n_persons)]
+            )
         if item_names is None:
-            item_names = self._item_names if self._item_names is not None else [f"Item_{i}" for i in range(n_items)]
+            item_names = (
+                self._item_names
+                if self._item_names is not None
+                else [f"Item_{i}" for i in range(n_items)]
+            )
 
         # Validate names
         if len(person_names) != n_persons:
@@ -422,50 +439,54 @@ class IdealPointResults:
             )
 
         # Build person DataFrame
-        person_data = {'person': person_names}
+        person_data = {"person": person_names}
 
         # Add ideal points (one column per dimension)
         if n_dims == 1:
-            person_data['ideal_point'] = self.ideal_points[:, 0]
+            person_data["ideal_point"] = self.ideal_points[:, 0]
             if include_uncertainty and self.ideal_points_std is not None:
-                person_data['ideal_point_se'] = self.ideal_points_std[:, 0]
+                person_data["ideal_point_se"] = self.ideal_points_std[:, 0]
             if include_uncertainty and self.ideal_points_ci_lower is not None:
-                person_data['ideal_point_ci_lower'] = self.ideal_points_ci_lower[:, 0]
-                person_data['ideal_point_ci_upper'] = self.ideal_points_ci_upper[:, 0]
+                person_data["ideal_point_ci_lower"] = self.ideal_points_ci_lower[:, 0]
+                person_data["ideal_point_ci_upper"] = self.ideal_points_ci_upper[:, 0]
         else:
             for dim in range(n_dims):
-                person_data[f'ideal_point_dim{dim+1}'] = self.ideal_points[:, dim]
+                person_data[f"ideal_point_dim{dim+1}"] = self.ideal_points[:, dim]
                 if include_uncertainty and self.ideal_points_std is not None:
-                    person_data[f'ideal_point_dim{dim+1}_se'] = self.ideal_points_std[:, dim]
+                    person_data[f"ideal_point_dim{dim+1}_se"] = self.ideal_points_std[:, dim]
                 if include_uncertainty and self.ideal_points_ci_lower is not None:
-                    person_data[f'ideal_point_dim{dim+1}_ci_lower'] = self.ideal_points_ci_lower[:, dim]
-                    person_data[f'ideal_point_dim{dim+1}_ci_upper'] = self.ideal_points_ci_upper[:, dim]
+                    person_data[f"ideal_point_dim{dim+1}_ci_lower"] = self.ideal_points_ci_lower[
+                        :, dim
+                    ]
+                    person_data[f"ideal_point_dim{dim+1}_ci_upper"] = self.ideal_points_ci_upper[
+                        :, dim
+                    ]
 
         persons_df = pd.DataFrame(person_data)
 
         # Build item DataFrame
-        item_data = {'item': item_names}
-        item_data['difficulty'] = self.difficulty
+        item_data = {"item": item_names}
+        item_data["difficulty"] = self.difficulty
 
         # Add discrimination (one column per dimension)
         if n_dims == 1:
-            item_data['discrimination'] = self.discrimination[:, 0]
+            item_data["discrimination"] = self.discrimination[:, 0]
             if include_uncertainty and self.discrimination_std is not None:
-                item_data['discrimination_se'] = self.discrimination_std[:, 0]
+                item_data["discrimination_se"] = self.discrimination_std[:, 0]
         else:
             for dim in range(n_dims):
-                item_data[f'discrimination_dim{dim+1}'] = self.discrimination[:, dim]
+                item_data[f"discrimination_dim{dim+1}"] = self.discrimination[:, dim]
                 if include_uncertainty and self.discrimination_std is not None:
-                    item_data[f'discrimination_dim{dim+1}_se'] = self.discrimination_std[:, dim]
+                    item_data[f"discrimination_dim{dim+1}_se"] = self.discrimination_std[:, dim]
 
         if include_uncertainty and self.difficulty_std is not None:
-            item_data['difficulty_se'] = self.difficulty_std
+            item_data["difficulty_se"] = self.difficulty_std
 
         items_df = pd.DataFrame(item_data)
 
         return {
-            'persons': persons_df,
-            'items': items_df,
+            "persons": persons_df,
+            "items": items_df,
         }
 
 
@@ -496,7 +517,7 @@ class BaseIdealPointModel(ABC):
         person_covariates: Optional[np.ndarray] = None,
         item_covariates: Optional[np.ndarray] = None,
         timepoints: Optional[np.ndarray] = None,
-        **kwargs
+        **kwargs,
     ) -> IdealPointResults:
         """
         Fit the ideal point estimation model.
@@ -554,14 +575,16 @@ class BaseIdealPointModel(ABC):
     def save(self, filepath: str):
         """Save fitted model to disk."""
         from .persistence import ModelIO
+
         if not self._is_fitted:
             raise ValueError("Model must be fitted before saving")
         ModelIO.save(self, filepath)
 
     @classmethod
-    def load(cls, filepath: str) -> 'BaseIdealPointModel':
+    def load(cls, filepath: str) -> "BaseIdealPointModel":
         """Load fitted model from disk."""
         from .persistence import ModelIO
+
         return ModelIO.load(filepath)
 
     def get_ideal_points(
@@ -602,12 +625,24 @@ class BaseIdealPointModel(ABC):
         if not with_uncertainty:
             return ideal_points
 
-        result = {'mean': ideal_points}
+        result = {"mean": ideal_points}
         if self.results.ideal_points_std is not None:
-            result['std'] = self.results.ideal_points_std[person_ids] if person_ids is not None else self.results.ideal_points_std
+            result["std"] = (
+                self.results.ideal_points_std[person_ids]
+                if person_ids is not None
+                else self.results.ideal_points_std
+            )
         if self.results.ideal_points_ci_lower is not None:
-            result['ci_lower'] = self.results.ideal_points_ci_lower[person_ids] if person_ids is not None else self.results.ideal_points_ci_lower
-            result['ci_upper'] = self.results.ideal_points_ci_upper[person_ids] if person_ids is not None else self.results.ideal_points_ci_upper
+            result["ci_lower"] = (
+                self.results.ideal_points_ci_lower[person_ids]
+                if person_ids is not None
+                else self.results.ideal_points_ci_lower
+            )
+            result["ci_upper"] = (
+                self.results.ideal_points_ci_upper[person_ids]
+                if person_ids is not None
+                else self.results.ideal_points_ci_upper
+            )
 
         return result
 
@@ -635,8 +670,8 @@ class BaseIdealPointModel(ABC):
             raise ValueError("Model must be fitted first")
 
         result = {
-            'difficulty': self.results.difficulty,
-            'discrimination': self.results.discrimination,
+            "difficulty": self.results.difficulty,
+            "discrimination": self.results.discrimination,
         }
 
         if item_ids is not None:
@@ -644,9 +679,17 @@ class BaseIdealPointModel(ABC):
 
         if with_uncertainty:
             if self.results.difficulty_std is not None:
-                result['difficulty_std'] = self.results.difficulty_std[item_ids] if item_ids is not None else self.results.difficulty_std
+                result["difficulty_std"] = (
+                    self.results.difficulty_std[item_ids]
+                    if item_ids is not None
+                    else self.results.difficulty_std
+                )
             if self.results.discrimination_std is not None:
-                result['discrimination_std'] = self.results.discrimination_std[item_ids] if item_ids is not None else self.results.discrimination_std
+                result["discrimination_std"] = (
+                    self.results.discrimination_std[item_ids]
+                    if item_ids is not None
+                    else self.results.discrimination_std
+                )
 
         return result
 
@@ -656,16 +699,16 @@ class BaseIdealPointModel(ABC):
             return "Model not fitted"
 
         lines = [
-            f"Ideal Point Estimation Model Summary",
-            f"=" * 50,
+            "Ideal Point Estimation Model Summary",
+            "=" * 50,
             f"Model type: {self.__class__.__name__}",
             f"Latent dimensions: {self.config.n_dims}",
             f"Response type: {self.config.response_type.value}",
-            f"",
-            f"Sample size:",
+            "",
+            "Sample size:",
             f"  Persons: {self.results.ideal_points.shape[0]}",
             f"  Items: {self.results.difficulty.shape[0]}",
-            f"",
+            "",
             f"Computation time: {self.results.computation_time:.2f}s",
         ]
 
@@ -673,7 +716,7 @@ class BaseIdealPointModel(ABC):
             lines.append(f"Log-likelihood: {self.results.log_likelihood:.2f}")
 
         if self.results.convergence_info:
-            lines.append(f"\nConvergence info:")
+            lines.append("\nConvergence info:")
             for key, val in self.results.convergence_info.items():
                 lines.append(f"  {key}: {val}")
 

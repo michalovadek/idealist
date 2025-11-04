@@ -20,8 +20,7 @@ Examples
 ... )
 """
 
-from typing import Dict, Optional
-import numpy as np
+from typing import Dict
 
 
 def default_priors() -> Dict[str, float]:
@@ -44,12 +43,12 @@ def default_priors() -> Dict[str, float]:
     >>> config = IdealPointConfig(response_type=ResponseType.BINARY, **default_priors())
     """
     return {
-        'prior_ideal_point_mean': 0.0,
-        'prior_ideal_point_scale': 1.0,
-        'prior_difficulty_mean': 0.0,
-        'prior_difficulty_scale': 2.5,
-        'prior_discrimination_mean': 0.0,
-        'prior_discrimination_scale': 2.5,
+        "prior_ideal_point_mean": 0.0,
+        "prior_ideal_point_scale": 1.0,
+        "prior_difficulty_mean": 0.0,
+        "prior_difficulty_scale": 2.5,
+        "prior_discrimination_mean": 0.0,
+        "prior_discrimination_scale": 2.5,
     }
 
 
@@ -97,12 +96,12 @@ def weakly_informative_priors(
     ... )
     """
     return {
-        'prior_ideal_point_mean': 0.0,
-        'prior_ideal_point_scale': ideal_point_scale,
-        'prior_difficulty_mean': 0.0,
-        'prior_difficulty_scale': difficulty_scale,
-        'prior_discrimination_mean': 0.0,
-        'prior_discrimination_scale': discrimination_scale,
+        "prior_ideal_point_mean": 0.0,
+        "prior_ideal_point_scale": ideal_point_scale,
+        "prior_difficulty_mean": 0.0,
+        "prior_difficulty_scale": difficulty_scale,
+        "prior_discrimination_mean": 0.0,
+        "prior_discrimination_scale": discrimination_scale,
     }
 
 
@@ -148,12 +147,12 @@ def conservative_priors(
     ... )
     """
     return {
-        'prior_ideal_point_mean': 0.0,
-        'prior_ideal_point_scale': ideal_point_scale,
-        'prior_difficulty_mean': 0.0,
-        'prior_difficulty_scale': difficulty_scale,
-        'prior_discrimination_mean': 0.0,
-        'prior_discrimination_scale': discrimination_scale,
+        "prior_ideal_point_mean": 0.0,
+        "prior_ideal_point_scale": ideal_point_scale,
+        "prior_difficulty_mean": 0.0,
+        "prior_difficulty_scale": difficulty_scale,
+        "prior_discrimination_mean": 0.0,
+        "prior_discrimination_scale": discrimination_scale,
     }
 
 
@@ -204,12 +203,12 @@ def vague_priors(
     ... )
     """
     return {
-        'prior_ideal_point_mean': 0.0,
-        'prior_ideal_point_scale': ideal_point_scale,
-        'prior_difficulty_mean': 0.0,
-        'prior_difficulty_scale': difficulty_scale,
-        'prior_discrimination_mean': 0.0,
-        'prior_discrimination_scale': discrimination_scale,
+        "prior_ideal_point_mean": 0.0,
+        "prior_ideal_point_scale": ideal_point_scale,
+        "prior_difficulty_mean": 0.0,
+        "prior_difficulty_scale": difficulty_scale,
+        "prior_discrimination_mean": 0.0,
+        "prior_discrimination_scale": discrimination_scale,
     }
 
 
@@ -262,12 +261,12 @@ def centered_priors(
     ... )
     """
     return {
-        'prior_ideal_point_mean': ideal_point_mean,
-        'prior_ideal_point_scale': ideal_point_scale,
-        'prior_difficulty_mean': difficulty_mean,
-        'prior_difficulty_scale': difficulty_scale,
-        'prior_discrimination_mean': discrimination_mean,
-        'prior_discrimination_scale': discrimination_scale,
+        "prior_ideal_point_mean": ideal_point_mean,
+        "prior_ideal_point_scale": ideal_point_scale,
+        "prior_difficulty_mean": difficulty_mean,
+        "prior_difficulty_scale": difficulty_scale,
+        "prior_discrimination_mean": discrimination_mean,
+        "prior_discrimination_scale": discrimination_scale,
     }
 
 
@@ -310,12 +309,12 @@ def rasch_priors(
     ... )
     """
     return {
-        'prior_ideal_point_mean': 0.0,
-        'prior_ideal_point_scale': ideal_point_scale,
-        'prior_difficulty_mean': 0.0,
-        'prior_difficulty_scale': difficulty_scale,
-        'prior_discrimination_mean': 1.0,  # Center at 1.0
-        'prior_discrimination_scale': 0.1,  # Tight constraint
+        "prior_ideal_point_mean": 0.0,
+        "prior_ideal_point_scale": ideal_point_scale,
+        "prior_difficulty_mean": 0.0,
+        "prior_difficulty_scale": difficulty_scale,
+        "prior_discrimination_mean": 1.0,  # Center at 1.0
+        "prior_discrimination_scale": 0.1,  # Tight constraint
     }
 
 
@@ -377,12 +376,14 @@ def hierarchical_priors(
         priors = base_priors.copy()
 
     # Add hierarchical components
-    priors.update({
-        'prior_covariate_scale': covariate_scale,
-        'prior_threshold_scale': threshold_scale,
-        'prior_residual_scale': residual_scale,
-        'temporal_variance': temporal_variance,
-    })
+    priors.update(
+        {
+            "prior_covariate_scale": covariate_scale,
+            "prior_threshold_scale": threshold_scale,
+            "prior_residual_scale": residual_scale,
+            "temporal_variance": temporal_variance,
+        }
+    )
 
     return priors
 
@@ -405,14 +406,14 @@ def flexible_priors() -> Dict[str, float]:
 
 # Export all functions
 __all__ = [
-    'default_priors',
-    'weakly_informative_priors',
-    'conservative_priors',
-    'vague_priors',
-    'centered_priors',
-    'rasch_priors',
-    'hierarchical_priors',
-    'standard_priors',
-    'regularized_priors',
-    'flexible_priors',
+    "default_priors",
+    "weakly_informative_priors",
+    "conservative_priors",
+    "vague_priors",
+    "centered_priors",
+    "rasch_priors",
+    "hierarchical_priors",
+    "standard_priors",
+    "regularized_priors",
+    "flexible_priors",
 ]

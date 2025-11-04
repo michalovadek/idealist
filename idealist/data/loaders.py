@@ -50,6 +50,7 @@ class IdealPointData:
     metadata : Dict
         Additional metadata about the dataset including summary statistics
     """
+
     person_ids: np.ndarray
     item_ids: np.ndarray
     responses: np.ndarray
@@ -88,14 +89,14 @@ class IdealPointData:
     def _compute_metadata(self) -> Dict:
         """Compute dataset statistics."""
         return {
-            'n_persons': len(self.person_names),
-            'n_items': len(self.item_names),
-            'n_observations': len(self.responses),
-            'response_rate': float(np.mean(self.responses)),
-            'obs_per_person_mean': len(self.responses) / len(self.person_names),
-            'obs_per_item_mean': len(self.responses) / len(self.item_names),
-            'response_min': float(np.min(self.responses)),
-            'response_max': float(np.max(self.responses)),
+            "n_persons": len(self.person_names),
+            "n_items": len(self.item_names),
+            "n_observations": len(self.responses),
+            "response_rate": float(np.mean(self.responses)),
+            "obs_per_person_mean": len(self.responses) / len(self.person_names),
+            "obs_per_item_mean": len(self.responses) / len(self.item_names),
+            "response_min": float(np.min(self.responses)),
+            "response_max": float(np.max(self.responses)),
         }
 
     @property
@@ -124,7 +125,10 @@ class IdealPointData:
             f"Obs/person:   {self.metadata['obs_per_person_mean']:.1f} (mean)",
             f"Obs/item:     {self.metadata['obs_per_item_mean']:.1f} (mean)",
             "",
-            f"Response range: [{self.metadata['response_min']:.0f}, {self.metadata['response_max']:.0f}]",
+            (
+                f"Response range: [{self.metadata['response_min']:.0f}, "
+                f"{self.metadata['response_max']:.0f}]"
+            ),
             f"Response rate:  {self.metadata['response_rate']:.1%}",
         ]
 
@@ -144,7 +148,117 @@ class IdealPointData:
         )
 
 
-def detect_response_type(responses: np.ndarray) -> Tuple[ResponseType, Optional[int], Optional[Tuple[float, float]]]:
+def validate_response_data(
+    responses: np.ndarray,
+    response_type: ResponseType,
+    n_categories: Optional[int] = None,
+    response_bounds: Optional[Tuple[float, float]] = None,
+) -> None:
+    """
+    Validate that response data is compatible with the specified response type.
+
+    Parameters
+    ----------
+    responses : np.ndarray
+        Array of response values
+    response_type : ResponseType
+        The specified response type
+    n_categories : Optional[int]
+        Number of categories (required for ORDINAL)
+    response_bounds : Optional[Tuple[float, float]]
+        Response bounds (required for BOUNDED_CONTINUOUS)
+
+    Raises
+    ------
+    ValueError
+        If the response data is incompatible with the specified response type
+
+    Notes
+    -----
+    Validation checks:
+    - BINARY: Must have exactly 2 unique values
+    - ORDINAL: Must have integer values in range [0, n_categories-1]
+    - COUNT: Must have non-negative integer values
+    - BOUNDED_CONTINUOUS: Must have values within specified bounds
+    - CONTINUOUS: No specific restrictions (accepts any numeric values)
+    """
+    unique_values = np.unique(responses)
+    n_unique = len(unique_values)
+    response_min = float(np.min(responses))
+    response_max = float(np.max(responses))
+
+    # Check if all values are integers
+    is_integer = np.allclose(responses, np.round(responses))
+
+    if response_type == ResponseType.BINARY:
+        if n_unique != 2:
+            raise ValueError(
+                f"response_type='binary' requires exactly 2 unique categories, "
+                f"but found {n_unique} unique values: {unique_values.tolist()}"
+            )
+
+    elif response_type == ResponseType.ORDINAL:
+        if n_categories is None:
+            raise ValueError("n_categories must be specified for response_type='ordinal'")
+
+        if not is_integer:
+            raise ValueError(
+                f"response_type='ordinal' requires integer values, "
+                f"but found non-integer values (min={response_min:.4f}, max={response_max:.4f})"
+            )
+
+        # Check that all values are in the valid range [0, n_categories-1]
+        if response_min < 0 or response_max >= n_categories:
+            raise ValueError(
+                f"response_type='ordinal' with n_categories={n_categories} requires "
+                f"values in range [0, {n_categories-1}], but found values in range "
+                f"[{int(response_min)}, {int(response_max)}]"
+            )
+
+        # Check that we actually have the expected number of categories
+        if n_unique != n_categories:
+            raise ValueError(
+                f"response_type='ordinal' with n_categories={n_categories} expects "
+                f"{n_categories} unique values, but found {n_unique} unique values: "
+                f"{unique_values.tolist()}"
+            )
+
+    elif response_type == ResponseType.COUNT:
+        if not is_integer:
+            raise ValueError(
+                f"response_type='count' requires integer values, "
+                f"but found non-integer values (min={response_min:.4f}, max={response_max:.4f})"
+            )
+
+        if response_min < 0:
+            raise ValueError(
+                f"response_type='count' requires non-negative integer values, "
+                f"but found negative values (min={int(response_min)})"
+            )
+
+    elif response_type == ResponseType.BOUNDED_CONTINUOUS:
+        if response_bounds is None:
+            raise ValueError(
+                "response_bounds must be specified for response_type='bounded_continuous'"
+            )
+
+        lower_bound, upper_bound = response_bounds
+
+        if response_min < lower_bound or response_max > upper_bound:
+            raise ValueError(
+                f"response_type='bounded_continuous' with bounds={response_bounds} requires "
+                f"all values in range [{lower_bound}, {upper_bound}], but found values "
+                f"in range [{response_min:.4f}, {response_max:.4f}]"
+            )
+
+    elif response_type == ResponseType.CONTINUOUS:
+        # Continuous accepts any numeric values - no validation needed
+        pass
+
+
+def detect_response_type(
+    responses: np.ndarray,
+) -> Tuple[ResponseType, Optional[int], Optional[Tuple[float, float]]]:
     """
     Automatically detect the appropriate response type from the data.
 
@@ -312,9 +426,7 @@ def load_data(
 
     if item_covariate_cols:
         # Extract item-level covariates (one row per item)
-        item_cov_df = df[[item_col] + item_covariate_cols].drop_duplicates(
-            subset=[item_col]
-        )
+        item_cov_df = df[[item_col] + item_covariate_cols].drop_duplicates(subset=[item_col])
         item_cov_df = item_cov_df.set_index(item_col).loc[item_names]
         item_covariates = item_cov_df[item_covariate_cols]
 

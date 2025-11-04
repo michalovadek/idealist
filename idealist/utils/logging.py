@@ -10,9 +10,7 @@ from typing import Optional
 
 
 def setup_logger(
-    name: str = "idealist",
-    level: int = logging.INFO,
-    enable: bool = True
+    name: str = "idealist", level: int = logging.INFO, enable: bool = True
 ) -> logging.Logger:
     """
     Set up a logger for the idealist package.
@@ -49,9 +47,7 @@ def setup_logger(
         handler.setLevel(level)
 
         # Create formatter
-        formatter = logging.Formatter(
-            '%(levelname)s - %(message)s'
-        )
+        formatter = logging.Formatter("%(levelname)s - %(message)s")
         handler.setFormatter(formatter)
 
         logger.addHandler(handler)
@@ -88,4 +84,4 @@ def get_logger(name: Optional[str] = None) -> logging.Logger:
 _default_logger = setup_logger(enable=False)
 
 
-__all__ = ['setup_logger', 'get_logger']
+__all__ = ["setup_logger", "get_logger"]

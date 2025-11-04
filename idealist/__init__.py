@@ -50,6 +50,10 @@ Example
 
 __version__ = "0.1.0"
 
+# IMPORTANT: Configure XLA CPU cores BEFORE any JAX imports
+# This must happen first to ensure JAX recognizes all available CPU cores
+from idealist.core import device  # noqa: F401 - triggers XLA configuration
+
 # Import core classes
 from idealist.core.base import (
     IdealPointConfig,
@@ -65,6 +69,10 @@ from idealist import data
 # Import logging utilities
 from idealist.utils.logging import setup_logger, get_logger
 
+# Import device configuration utilities (optional advanced usage)
+from idealist.core.device import configure_cpu_cores
+from idealist.core.diagnostics import check_installation, print_device_info
+
 __all__ = [
     # Main API
     "IdealPointEstimator",
@@ -78,6 +86,10 @@ __all__ = [
     # Logging
     "setup_logger",
     "get_logger",
+    # Device configuration and diagnostics
+    "configure_cpu_cores",
+    "check_installation",
+    "print_device_info",
     # Version
     "__version__",
 ]

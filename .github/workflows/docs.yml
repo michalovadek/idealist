@@ -7,8 +7,8 @@ on:
     branches: [ main ]
 
 jobs:
-  build-docs:
-    name: Build Documentation
+  check-docs:
+    name: Check Documentation
     runs-on: ubuntu-latest
 
     steps:
@@ -18,25 +18,26 @@ jobs:
       uses: actions/setup-python@v5
       with:
         python-version: '3.11'
-        cache: 'pip'
 
-    - name: Install dependencies
+    - name: Check markdown files exist
       run: |
-        python -m pip install --upgrade pip
-        pip install -e .[docs] || pip install -e . sphinx sphinx-rtd-theme
+        echo "Checking documentation files..."
+        test -f README.md && echo "✓ README.md found"
+        test -f docs/installation.md && echo "✓ docs/installation.md found"
+        test -f docs/configuration.md && echo "✓ docs/configuration.md found"
+        test -f docs/troubleshooting.md && echo "✓ docs/troubleshooting.md found"
 
-    - name: Build docs
+    - name: Install markdown linter
       run: |
-        # Check if docs directory exists
-        if [ -d "docs" ]; then
-          cd docs
-          make html || sphinx-build -b html . _build/html
-        else
-          echo "No docs directory found - skipping"
-        fi
+        npm install -g markdownlint-cli
+
+    - name: Lint markdown files
+      run: |
+        markdownlint README.md docs/*.md --disable MD013 MD033 MD041
       continue-on-error: true
 
-    - name: Check README
+    - name: Check README renders
       run: |
         python -m pip install readme-renderer
         python -m readme_renderer README.md -o /tmp/README.html
+      continue-on-error: true

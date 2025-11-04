@@ -35,6 +35,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# Development dependencies
 dev = [
     "pytest>=7.0.0",
     "pytest-cov>=4.0.0",
@@ -42,7 +43,28 @@ dev = [
     "ruff>=0.0.290",
     "mypy>=1.0.0",
 ]
+# Documentation dependencies
 docs = [
+    "sphinx>=5.0.0",
+    "sphinx-rtd-theme>=1.0.0",
+]
+# GPU support (CUDA 12.x) - note: conflicts with cpu-only jax
+# Users should install this in a fresh environment
+cuda12 = [
+    "jax[cuda12]>=0.4.0",
+]
+# GPU support (CUDA 11.x) - note: conflicts with cpu-only jax
+# Users should install this in a fresh environment
+cuda11 = [
+    "jax[cuda11]>=0.4.0",
+]
+# Complete installation with all extras
+all = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+    "black>=23.0.0",
+    "ruff>=0.0.290",
+    "mypy>=1.0.0",
     "sphinx>=5.0.0",
     "sphinx-rtd-theme>=1.0.0",
 ]
@@ -54,7 +76,7 @@ Repository = "https://github.com/michalovadek/idealist"
 Issues = "https://github.com/michalovadek/idealist/issues"
 
 [tool.setuptools]
-packages = ["idealist", "idealist.core", "idealist.models", "idealist.data"]
+packages = ["idealist", "idealist.core", "idealist.models", "idealist.data", "idealist.utils"]
 
 [tool.setuptools.package-data]
 idealist = ["py.typed"]

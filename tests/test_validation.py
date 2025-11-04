@@ -10,7 +10,7 @@ import numpy as np
 import pandas as pd
 
 from idealist import IdealPointEstimator, IdealPointConfig, ResponseType
-from idealist.data import load_data, detect_response_type, IdealPointData
+from idealist.data import load_data, detect_response_type, IdealPointData, validate_response_data
 
 
 class TestDataValidation:
@@ -277,6 +277,214 @@ class TestDataLoader:
         assert 'Observations:' in summary
         assert '2' in summary  # 2 persons
         assert '4' in summary  # 4 observations
+
+
+class TestResponseTypeValidation:
+    """Tests for response type validation against input data."""
+
+    def test_binary_valid(self):
+        """Test that valid binary data passes validation."""
+        responses = np.array([0, 1, 1, 0, 1, 0])
+        # Should not raise any error
+        validate_response_data(responses, ResponseType.BINARY)
+
+    def test_binary_invalid_single_value(self):
+        """Test that binary validation fails with only one unique value."""
+        responses = np.array([1, 1, 1, 1, 1])
+        with pytest.raises(ValueError, match="requires exactly 2 unique categories"):
+            validate_response_data(responses, ResponseType.BINARY)
+
+    def test_binary_invalid_three_values(self):
+        """Test that binary validation fails with three unique values."""
+        responses = np.array([0, 1, 2, 1, 0, 2])
+        with pytest.raises(ValueError, match="requires exactly 2 unique categories"):
+            validate_response_data(responses, ResponseType.BINARY)
+
+    def test_ordinal_valid(self):
+        """Test that valid ordinal data passes validation."""
+        responses = np.array([0, 1, 2, 3, 4, 2, 1, 3])
+        # Should not raise any error
+        validate_response_data(responses, ResponseType.ORDINAL, n_categories=5)
+
+    def test_ordinal_missing_n_categories(self):
+        """Test that ordinal validation fails without n_categories."""
+        responses = np.array([0, 1, 2, 3, 4])
+        with pytest.raises(ValueError, match="n_categories must be specified"):
+            validate_response_data(responses, ResponseType.ORDINAL)
+
+    def test_ordinal_invalid_non_integer(self):
+        """Test that ordinal validation fails with non-integer values."""
+        responses = np.array([0.5, 1.2, 2.8, 1.5])
+        with pytest.raises(ValueError, match="requires integer values"):
+            validate_response_data(responses, ResponseType.ORDINAL, n_categories=4)
+
+    def test_ordinal_invalid_range_too_high(self):
+        """Test that ordinal validation fails with values exceeding n_categories."""
+        responses = np.array([0, 1, 2, 3, 5])  # 5 exceeds max of 4 for n_categories=5
+        with pytest.raises(ValueError, match="requires.*values in range"):
+            validate_response_data(responses, ResponseType.ORDINAL, n_categories=5)
+
+    def test_ordinal_invalid_range_negative(self):
+        """Test that ordinal validation fails with negative values."""
+        responses = np.array([-1, 0, 1, 2, 3])
+        with pytest.raises(ValueError, match="requires.*values in range"):
+            validate_response_data(responses, ResponseType.ORDINAL, n_categories=5)
+
+    def test_ordinal_invalid_missing_categories(self):
+        """Test that ordinal validation fails when not all categories are present."""
+        responses = np.array([0, 1, 3, 4])  # Missing category 2
+        with pytest.raises(ValueError, match="expects.*unique values"):
+            validate_response_data(responses, ResponseType.ORDINAL, n_categories=5)
+
+    def test_count_valid(self):
+        """Test that valid count data passes validation."""
+        responses = np.array([0, 1, 5, 10, 15, 20, 3, 7])
+        # Should not raise any error
+        validate_response_data(responses, ResponseType.COUNT)
+
+    def test_count_invalid_non_integer(self):
+        """Test that count validation fails with non-integer values."""
+        responses = np.array([1.5, 2.3, 3.7])
+        with pytest.raises(ValueError, match="requires integer values"):
+            validate_response_data(responses, ResponseType.COUNT)
+
+    def test_count_invalid_negative(self):
+        """Test that count validation fails with negative values."""
+        responses = np.array([0, 1, 5, -3, 10])
+        with pytest.raises(ValueError, match="requires non-negative"):
+            validate_response_data(responses, ResponseType.COUNT)
+
+    def test_bounded_continuous_valid(self):
+        """Test that valid bounded continuous data passes validation."""
+        responses = np.array([0.5, 1.2, 2.8, 3.4, 4.5])
+        # Should not raise any error
+        validate_response_data(
+            responses,
+            ResponseType.BOUNDED_CONTINUOUS,
+            response_bounds=(0.0, 5.0),
+        )
+
+    def test_bounded_continuous_missing_bounds(self):
+        """Test that bounded continuous validation fails without response_bounds."""
+        responses = np.array([0.5, 1.2, 2.8])
+        with pytest.raises(ValueError, match="response_bounds must be specified"):
+            validate_response_data(responses, ResponseType.BOUNDED_CONTINUOUS)
+
+    def test_bounded_continuous_invalid_below_lower(self):
+        """Test that bounded continuous validation fails with values below lower bound."""
+        responses = np.array([-0.5, 1.2, 2.8, 3.4])
+        with pytest.raises(ValueError, match="requires.*all values in range"):
+            validate_response_data(
+                responses,
+                ResponseType.BOUNDED_CONTINUOUS,
+                response_bounds=(0.0, 5.0),
+            )
+
+    def test_bounded_continuous_invalid_above_upper(self):
+        """Test that bounded continuous validation fails with values above upper bound."""
+        responses = np.array([0.5, 1.2, 2.8, 5.5])
+        with pytest.raises(ValueError, match="requires.*all values in range"):
+            validate_response_data(
+                responses,
+                ResponseType.BOUNDED_CONTINUOUS,
+                response_bounds=(0.0, 5.0),
+            )
+
+    def test_continuous_valid(self):
+        """Test that continuous data accepts any numeric values."""
+        responses = np.array([-100.5, 0.0, 1.2, 50.8, 1000.3])
+        # Should not raise any error - continuous accepts anything
+        validate_response_data(responses, ResponseType.CONTINUOUS)
+
+    def test_validation_in_model_fit_binary_mismatch(self):
+        """Test that model.fit() validates binary response type and fails appropriately."""
+        # Create data with 3 unique values but specify binary response type
+        person_ids = np.array([0, 1, 2, 0, 1, 2])
+        item_ids = np.array([0, 0, 0, 1, 1, 1])
+        responses = np.array([0, 1, 2, 1, 2, 0])  # 3 unique values
+
+        config = IdealPointConfig(n_dims=1, response_type=ResponseType.BINARY)
+        model = IdealPointEstimator(config)
+
+        with pytest.raises(ValueError, match="requires exactly 2 unique categories"):
+            model.fit(
+                person_ids=person_ids,
+                item_ids=item_ids,
+                responses=responses,
+                inference='vi',
+                vi_steps=100,
+                device='cpu',
+                progress_bar=False,
+            )
+
+    def test_validation_in_model_fit_ordinal_mismatch(self):
+        """Test that model.fit() validates ordinal response type and fails appropriately."""
+        # Create data with values outside the ordinal range
+        person_ids = np.array([0, 1, 2, 0, 1, 2])
+        item_ids = np.array([0, 0, 0, 1, 1, 1])
+        responses = np.array([0, 1, 2, 3, 4, 5])  # 5 exceeds max for n_categories=5
+
+        config = IdealPointConfig(
+            n_dims=1,
+            response_type=ResponseType.ORDINAL,
+            n_categories=5,
+        )
+        model = IdealPointEstimator(config)
+
+        with pytest.raises(ValueError, match="requires.*values in range"):
+            model.fit(
+                person_ids=person_ids,
+                item_ids=item_ids,
+                responses=responses,
+                inference='vi',
+                vi_steps=100,
+                device='cpu',
+                progress_bar=False,
+            )
+
+    def test_validation_in_model_fit_count_non_integer(self):
+        """Test that model.fit() validates count response type and fails with non-integers."""
+        person_ids = np.array([0, 1, 2, 0, 1, 2])
+        item_ids = np.array([0, 0, 0, 1, 1, 1])
+        responses = np.array([1.5, 2.3, 3.7, 4.1, 5.2, 6.8])  # Non-integer values
+
+        config = IdealPointConfig(n_dims=1, response_type=ResponseType.COUNT)
+        model = IdealPointEstimator(config)
+
+        with pytest.raises(ValueError, match="requires integer values"):
+            model.fit(
+                person_ids=person_ids,
+                item_ids=item_ids,
+                responses=responses,
+                inference='vi',
+                vi_steps=100,
+                device='cpu',
+                progress_bar=False,
+            )
+
+    def test_validation_in_model_fit_bounded_continuous_out_of_bounds(self):
+        """Test that model.fit() validates bounded continuous and fails with out-of-bounds values."""
+        person_ids = np.array([0, 1, 2, 0, 1, 2])
+        item_ids = np.array([0, 0, 0, 1, 1, 1])
+        responses = np.array([0.5, 1.2, 2.8, 3.4, 4.7, 5.5])  # 5.5 exceeds upper bound
+
+        config = IdealPointConfig(
+            n_dims=1,
+            response_type=ResponseType.BOUNDED_CONTINUOUS,
+            response_bounds=(0.0, 5.0),
+        )
+        model = IdealPointEstimator(config)
+
+        with pytest.raises(ValueError, match="requires.*all values in range"):
+            model.fit(
+                person_ids=person_ids,
+                item_ids=item_ids,
+                responses=responses,
+                inference='vi',
+                vi_steps=100,
+                device='cpu',
+                progress_bar=False,
+            )
 
 
 if __name__ == '__main__':
