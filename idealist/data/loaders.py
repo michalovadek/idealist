@@ -14,11 +14,12 @@ space based on binary, ordinal, or continuous response data. Applications includ
 - Social science: survey responses, attitude measurement
 """
 
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Dict, List, Optional, Tuple, Union
+
 import numpy as np
 import pandas as pd
-from typing import Union, Optional, Dict, List, Tuple
-from pathlib import Path
-from dataclasses import dataclass
 
 from ..core.base import ResponseType
 

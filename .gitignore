@@ -85,11 +85,18 @@ dmypy.json
 *.pkl
 *.npz
 /data/
-/experiments/
-/results/
 
-# Analysis and temporary files
+# Experiments, replications, and analysis (keep out of package)
+/experiments/
+/replications/
+/results/
+/analysis/
+/scratch/
+
+# Temporary analysis and test files
 RESPONSE_TYPE_ANALYSIS.txt
 check_workflows.py
 *.analysis.txt
 *.notes.txt
+*_temp.py
+*_scratch.py

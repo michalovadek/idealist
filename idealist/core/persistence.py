@@ -6,10 +6,11 @@ Handles serialization of model parameters, configuration, and results.
 
 from __future__ import annotations
 
-import pickle
 import json
+import pickle
 from pathlib import Path
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
+
 import numpy as np
 
 if TYPE_CHECKING:
@@ -259,7 +260,7 @@ class ModelIO:
     @staticmethod
     def _config_to_dict(config: Any) -> dict:
         """Convert IdealPointConfig to dictionary."""
-        from .base import ResponseType, IdentificationConstraint
+        from .base import IdentificationConstraint, ResponseType
 
         d = config.__dict__.copy()
         # Convert enums to strings
@@ -275,7 +276,7 @@ class ModelIO:
     @staticmethod
     def _dict_to_config(d: dict) -> "IdealPointConfig":
         """Convert dictionary to IdealPointConfig."""
-        from .base import IdealPointConfig, ResponseType, IdentificationConstraint
+        from .base import IdealPointConfig, IdentificationConstraint, ResponseType
 
         # Convert strings to enums
         if "response_type" in d:

@@ -1,11 +1,11 @@
 """Core classes and configurations for ideal point estimation."""
 
 from idealist.core.base import (
+    BaseIdealPointModel,
     IdealPointConfig,
     IdealPointResults,
-    ResponseType,
     IdentificationConstraint,
-    BaseIdealPointModel,
+    ResponseType,
 )
 
 __all__ = [

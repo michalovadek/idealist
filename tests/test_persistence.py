@@ -5,10 +5,10 @@ Tests that fitted models can be saved to and loaded from disk
 in various formats (pickle, npz, json).
 """
 
-import pytest
 import numpy as np
+import pytest
 
-from idealist import IdealPointEstimator, IdealPointConfig, ResponseType
+from idealist import IdealPointConfig, IdealPointEstimator, ResponseType
 from idealist.core.persistence import ModelIO
 
 

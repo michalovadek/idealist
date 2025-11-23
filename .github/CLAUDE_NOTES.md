@@ -67,3 +67,67 @@ The README should be scannable in under 30 seconds.
 
 ### Before Any Commit
 Always check `git status` and ensure only intentional files are being committed.
+
+---
+
+## Experiments and Replications Policy
+
+**CRITICAL: Keep package clean - use experiments/ for all non-production work**
+
+### Directory Structure
+
+```
+idealist/                    # Package code ONLY
+├── idealist/               # Python package
+├── tests/                  # Official tests
+├── docs/                   # User documentation
+├── examples/               # Official examples (if added)
+└── experiments/            # 🚫 GITIGNORED - Experimental work
+    ├── replications/       # Replication studies
+    ├── scratch/            # Temporary code
+    ├── benchmarks/         # Performance tests
+    └── validation/         # Validation scripts
+```
+
+### What Goes Where
+
+#### ✅ **In Package** (`idealist/`, `tests/`, `docs/`)
+- Core implementation
+- Official unit/integration tests
+- User-facing documentation
+- API reference
+- Installation/configuration guides
+
+#### ✅ **In Experiments** (`experiments/` - gitignored)
+- **Replication studies** (UK Supreme Court, etc.)
+- **Scratch work** and prototypes
+- **Validation scripts** against other packages
+- **Benchmarks** and performance testing
+- **Exploratory analysis**
+- **Test data files** (CSV, etc.)
+- **Jupyter notebooks** for exploration
+
+### Rules
+
+1. **Default location for new work**: `experiments/scratch/`
+2. **Replications stay in experiments** unless explicitly promoted
+3. **No data files in package** (except tiny test fixtures)
+4. **Use descriptive names**: `uk_supreme_court.md`, not `test1.py`
+5. **Clean up experiments/** periodically - it's temporary workspace
+
+### Promoting from Experiments to Package
+
+Only move to package when:
+1. User explicitly requests it as an official example
+2. Code is production-quality
+3. Properly documented
+4. Tested
+5. Integrated with package API
+
+**Process**:
+```bash
+# If promoting replication to official example:
+mkdir examples/political_science/
+mv experiments/replications/uk_supreme_court.py examples/political_science/
+# Then: Add tests, documentation, clean up, commit
+```

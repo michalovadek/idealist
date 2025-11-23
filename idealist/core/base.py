@@ -18,7 +18,8 @@ Key concepts:
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Optional, Dict, Any, Union
+from typing import Any, Dict, Optional, Union
+
 import numpy as np
 
 
@@ -40,6 +41,15 @@ class IdentificationConstraint(Enum):
     FIX_FIRST_TWO_PERSONS = "fix_first_two_persons"  # Fix first two persons (2D)
     FIX_VARIANCE = "fix_variance"  # Fix ideal point variance to 1
     REFERENCE_SCORES = "reference_scores"  # Align to external scores (e.g., DW-NOMINATE)
+
+
+class PriorFamily(Enum):
+    """Prior distribution families for model parameters."""
+
+    NORMAL = "normal"
+    STUDENT_T = "student_t"
+    CAUCHY = "cauchy"
+    LAPLACE = "laplace"
 
 
 @dataclass
@@ -113,9 +123,19 @@ class IdealPointConfig:
     identification: IdentificationConstraint = IdentificationConstraint.REFERENCE_SCORES
 
     # Model extensions
-    hierarchical: bool = False
     temporal_dynamics: bool = False
     temporal_model: str = "random_walk"
+
+    # Hierarchical models with covariates
+    person_covariates: bool = False  # Person covariates affect ideal points (θ)
+    item_covariates: bool = False  # Item covariates affect item parameters (α, β)
+    item_covariates_difficulty: bool = False  # Fine control: covariates → difficulty (α)
+    item_covariates_discrimination: bool = False  # Fine control: covariates → discrimination (β)
+
+    # Hyperpriors on scale parameters
+    hyperprior_person_scale: bool = (
+        False  # Put hyperprior on ideal point scale: σ_θ ~ HalfNormal(τ)
+    )
 
     # Priors - means (location parameters)
     prior_ideal_point_mean: float = 0.0
@@ -133,6 +153,18 @@ class IdealPointConfig:
     prior_precision_shape: float = 2.0
     prior_precision_rate: float = 0.1
 
+    # Prior distribution families
+    prior_ideal_point_family: str = "normal"  # normal, student_t, cauchy, laplace
+    prior_difficulty_family: str = "normal"
+    prior_discrimination_family: str = "normal"
+    prior_covariate_family: str = "normal"
+
+    # Degrees of freedom for Student-t priors (ignored for other families)
+    prior_ideal_point_df: float = 7.0
+    prior_difficulty_df: float = 7.0
+    prior_discrimination_df: float = 7.0
+    prior_covariate_df: float = 7.0
+
     # Reference for identification
     reference_scores: Optional[np.ndarray] = None
 
@@ -143,6 +175,14 @@ class IdealPointConfig:
 
     def __post_init__(self):
         """Validate configuration."""
+        # Handle item_covariates shortcut
+        if self.item_covariates and not (
+            self.item_covariates_difficulty or self.item_covariates_discrimination
+        ):
+            # If general flag set but specifics not set, enable both
+            self.item_covariates_difficulty = True
+            self.item_covariates_discrimination = True
+
         # Validate dimensionality
         if self.n_dims not in [1, 2]:
             raise ValueError("n_dims must be 1 or 2")

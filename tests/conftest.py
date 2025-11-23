@@ -1,7 +1,7 @@
 """Pytest fixtures for testing ideal point estimation."""
 
-import pytest
 import numpy as np
+import pytest
 
 
 def _generate_binary_data(n_persons, n_items, n_dims, sparsity, seed):
@@ -253,3 +253,171 @@ def small_bounded_continuous_data():
 def small_count_data():
     """Small synthetic count response data."""
     return _generate_count_data(n_persons=30, n_items=15, n_dims=1, sparsity=0.8, seed=42)
+
+
+def _generate_temporal_data(n_persons, n_items, n_dims, n_timepoints, sparsity, seed):
+    """Generate synthetic temporal data with time-varying ideal points."""
+    np.random.seed(seed)
+
+    # Generate initial ideal points
+    theta_initial = np.random.normal(0, 1, (n_persons, n_dims))
+
+    # Generate temporal evolution (random walk)
+    temporal_variance = 0.1
+    temporal_ideal_points = np.zeros((n_timepoints, n_persons, n_dims))
+    temporal_ideal_points[0] = theta_initial
+
+    for t in range(1, n_timepoints):
+        innovations = np.random.normal(0, temporal_variance, (n_persons, n_dims))
+        temporal_ideal_points[t] = temporal_ideal_points[t-1] + innovations
+
+    # Generate item parameters
+    true_difficulty = np.random.normal(0, 1, n_items)
+    true_discrimination = np.abs(np.random.normal(1, 0.5, (n_items, n_dims)))
+
+    # Generate responses across time
+    person_ids = []
+    item_ids = []
+    timepoints = []
+    responses = []
+
+    for t in range(n_timepoints):
+        for i in range(n_persons):
+            for j in range(n_items):
+                if np.random.rand() > sparsity:
+                    continue
+
+                # Compute probability using ideal point at time t
+                linear_pred = true_difficulty[j] + np.sum(
+                    true_discrimination[j] * temporal_ideal_points[t, i]
+                )
+                prob = 1 / (1 + np.exp(-linear_pred))
+
+                # Generate response
+                response = int(np.random.rand() < prob)
+
+                person_ids.append(i)
+                item_ids.append(j)
+                timepoints.append(t)
+                responses.append(response)
+
+    return {
+        "person_ids": np.array(person_ids),
+        "item_ids": np.array(item_ids),
+        "timepoints": np.array(timepoints),
+        "responses": np.array(responses),
+        "n_persons": n_persons,
+        "n_items": n_items,
+        "n_dims": n_dims,
+        "n_timepoints": n_timepoints,
+        "true_temporal_ideal_points": temporal_ideal_points,
+        "true_difficulty": true_difficulty,
+        "true_discrimination": true_discrimination,
+    }
+
+
+def _generate_covariate_data(n_persons, n_items, n_dims, n_person_covariates, n_item_covariates, sparsity, seed):
+    """Generate synthetic data with person and item covariates."""
+    np.random.seed(seed)
+
+    # Generate person covariates
+    person_covariates = np.random.randn(n_persons, n_person_covariates)
+
+    # Generate item covariates
+    item_covariates = np.random.randn(n_items, n_item_covariates)
+
+    # Generate covariate effects
+    gamma_person = np.random.normal(0.5, 0.2, (n_person_covariates, n_dims))  # Person covariate effects
+    delta_item = np.random.normal(0.3, 0.1, n_item_covariates)  # Item covariate effects on difficulty
+
+    # Generate ideal points from person covariates
+    true_ideal_points = person_covariates @ gamma_person + np.random.normal(0, 0.3, (n_persons, n_dims))
+
+    # Generate item parameters from item covariates
+    true_difficulty = item_covariates @ delta_item + np.random.normal(0, 0.5, n_items)
+    true_discrimination = np.abs(np.random.normal(1, 0.5, (n_items, n_dims)))
+
+    # Generate responses
+    person_ids = []
+    item_ids = []
+    responses = []
+
+    for i in range(n_persons):
+        for j in range(n_items):
+            if np.random.rand() > sparsity:
+                continue
+
+            # Compute probability
+            linear_pred = true_difficulty[j] + np.sum(true_discrimination[j] * true_ideal_points[i])
+            prob = 1 / (1 + np.exp(-linear_pred))
+
+            # Generate response
+            response = int(np.random.rand() < prob)
+
+            person_ids.append(i)
+            item_ids.append(j)
+            responses.append(response)
+
+    return {
+        "person_ids": np.array(person_ids),
+        "item_ids": np.array(item_ids),
+        "responses": np.array(responses),
+        "person_covariates": person_covariates,
+        "item_covariates": item_covariates,
+        "n_persons": n_persons,
+        "n_items": n_items,
+        "n_dims": n_dims,
+        "n_person_covariates": n_person_covariates,
+        "n_item_covariates": n_item_covariates,
+        "true_ideal_points": true_ideal_points,
+        "true_difficulty": true_difficulty,
+        "true_discrimination": true_discrimination,
+        "true_gamma_person": gamma_person,
+        "true_delta_item": delta_item,
+    }
+
+
+@pytest.fixture
+def small_temporal_data():
+    """Small synthetic temporal data for testing temporal dynamics."""
+    return _generate_temporal_data(
+        n_persons=20, n_items=12, n_dims=1, n_timepoints=3, sparsity=0.8, seed=42
+    )
+
+
+@pytest.fixture
+def medium_temporal_data():
+    """Medium synthetic temporal data with more timepoints."""
+    return _generate_temporal_data(
+        n_persons=25, n_items=15, n_dims=1, n_timepoints=5, sparsity=0.75, seed=123
+    )
+
+
+@pytest.fixture
+def person_covariate_data():
+    """Data with person-level covariates."""
+    return _generate_covariate_data(
+        n_persons=25, n_items=15, n_dims=1,
+        n_person_covariates=2, n_item_covariates=0,
+        sparsity=0.8, seed=42
+    )
+
+
+@pytest.fixture
+def item_covariate_data():
+    """Data with item-level covariates."""
+    return _generate_covariate_data(
+        n_persons=25, n_items=15, n_dims=1,
+        n_person_covariates=0, n_item_covariates=2,
+        sparsity=0.8, seed=123
+    )
+
+
+@pytest.fixture
+def both_covariate_data():
+    """Data with both person and item covariates."""
+    return _generate_covariate_data(
+        n_persons=25, n_items=15, n_dims=1,
+        n_person_covariates=2, n_item_covariates=2,
+        sparsity=0.8, seed=456
+    )

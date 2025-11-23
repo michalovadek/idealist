@@ -5,10 +5,10 @@ Tests that the IdealPointEstimator can handle various types of response data
 beyond simple binary responses.
 """
 
-import pytest
 import numpy as np
+import pytest
 
-from idealist import IdealPointEstimator, IdealPointConfig, ResponseType
+from idealist import IdealPointConfig, IdealPointEstimator, ResponseType
 
 
 class TestOrdinalResponses:

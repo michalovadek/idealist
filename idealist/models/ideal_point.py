@@ -33,19 +33,19 @@ Extensions:
 from __future__ import annotations
 
 import time
-from typing import Optional, Dict, Union, Literal, TYPE_CHECKING
+from typing import TYPE_CHECKING, Dict, Literal, Optional, Union
 
 import jax
 import jax.numpy as jnp
 import numpy as np
-import pandas as pd
 import numpyro
 import numpyro.distributions as dist
+import pandas as pd
 from numpyro.infer import MCMC, NUTS, Predictive
 from numpyro.infer.autoguide import (
-    AutoNormal,
-    AutoMultivariateNormal,
     AutoLowRankMultivariateNormal,
+    AutoMultivariateNormal,
+    AutoNormal,
 )
 
 from ..core.base import BaseIdealPointModel, IdealPointConfig, IdealPointResults, ResponseType
@@ -103,6 +103,68 @@ class IdealPointEstimator(BaseIdealPointModel):
         self.svi = None
         self.guide = None
 
+    def _sample_with_prior(
+        self,
+        name: str,
+        shape: tuple,
+        family: str,
+        mean: float,
+        scale: float,
+        df: float = 7.0,
+    ):
+        """
+        Sample parameter with flexible prior distribution.
+
+        Parameters
+        ----------
+        name : str
+            Parameter name for numpyro.sample()
+        shape : tuple
+            Shape of parameter array
+        family : str
+            Prior family: "normal", "student_t", "cauchy", "laplace"
+        mean : float
+            Location parameter (μ)
+        scale : float
+            Scale parameter (σ)
+        df : float, default=7.0
+            Degrees of freedom (only used for Student-t family)
+
+        Returns
+        -------
+        jnp.ndarray
+            Array sampled from specified prior distribution
+
+        Notes
+        -----
+        - Student-t priors are more robust to outliers than Normal priors
+        - Cauchy is equivalent to Student-t with df=1 (very heavy tails)
+        - Laplace has sharper peak and heavier tails than Normal
+        """
+        n_dims_event = len(shape)
+
+        if family == "normal":
+            return numpyro.sample(
+                name, dist.Normal(mean, scale).expand(shape).to_event(n_dims_event)
+            )
+        elif family == "student_t":
+            return numpyro.sample(
+                name, dist.StudentT(df, mean, scale).expand(shape).to_event(n_dims_event)
+            )
+        elif family == "cauchy":
+            return numpyro.sample(
+                name, dist.Cauchy(mean, scale).expand(shape).to_event(n_dims_event)
+            )
+        elif family == "laplace":
+            return numpyro.sample(
+                name, dist.Laplace(mean, scale).expand(shape).to_event(n_dims_event)
+            )
+        else:
+            raise ValueError(
+                f"Unknown prior family: {family}. "
+                f"Supported: 'normal', 'student_t', 'cauchy', 'laplace'"
+            )
+
     def _build_model(
         self,
         person_ids: jnp.ndarray,
@@ -155,74 +217,126 @@ class IdealPointEstimator(BaseIdealPointModel):
 
         else:
             # Static model
-            if self.config.hierarchical and person_covariates is not None:
-                # Hierarchical: θ_i ~ N(X_i·γ, σ²)
-                n_covariates = person_covariates.shape[1]
-                gamma = numpyro.sample(
-                    "person_covariate_effects",
-                    dist.Normal(0.0, self.config.prior_covariate_scale).expand(
-                        [n_covariates, n_dims]
-                    ),
-                )
-                mean_theta = jnp.dot(person_covariates, gamma)
-                ideal_points_all = numpyro.sample(
-                    "ideal_points",
-                    dist.Normal(mean_theta, self.config.prior_ideal_point_scale).to_event(2),
+
+            # Hyperprior on ideal point scale if requested
+            if self.config.hyperprior_person_scale:
+                ideal_point_scale = numpyro.sample(
+                    "ideal_point_scale_hyperparam",
+                    dist.HalfNormal(self.config.prior_ideal_point_scale),
                 )
             else:
-                # Standard: θ_i ~ N(0, σ²)
-                ideal_points_all = numpyro.sample(
+                ideal_point_scale = self.config.prior_ideal_point_scale
+
+            if self.config.person_covariates and person_covariates is not None:
+                # Hierarchical: θ_i ~ Prior(X_i·γ, σ²)
+                n_covariates = person_covariates.shape[1]
+
+                # Sample covariate effects with flexible prior
+                gamma = self._sample_with_prior(
+                    "person_covariate_effects",
+                    shape=(n_covariates, n_dims),
+                    family=self.config.prior_covariate_family,
+                    mean=0.0,
+                    scale=self.config.prior_covariate_scale,
+                    df=self.config.prior_covariate_df,
+                )
+
+                mean_theta = jnp.dot(person_covariates, gamma)
+                # Use the specified prior family for residuals
+                ideal_points_all = self._sample_with_prior(
                     "ideal_points",
-                    dist.Normal(
-                        self.config.prior_ideal_point_mean, self.config.prior_ideal_point_scale
-                    )
-                    .expand([n_persons, n_dims])
-                    .to_event(2),
+                    shape=(n_persons, n_dims),
+                    family=self.config.prior_ideal_point_family,
+                    mean=mean_theta,
+                    scale=ideal_point_scale,
+                    df=self.config.prior_ideal_point_df,
+                )
+            else:
+                # Standard: θ_i ~ Prior(μ, σ²) with flexible prior family
+                ideal_points_all = self._sample_with_prior(
+                    "ideal_points",
+                    shape=(n_persons, n_dims),
+                    family=self.config.prior_ideal_point_family,
+                    mean=self.config.prior_ideal_point_mean,
+                    scale=ideal_point_scale,
+                    df=self.config.prior_ideal_point_df,
                 )
 
             ideal_points = ideal_points_all[person_ids, :]
 
         # ===== ITEM PARAMETERS =====
-        # Difficulty: α_j ~ N(0, σ_α²)
-        if self.config.hierarchical and item_covariates is not None:
+        # Difficulty: α_j ~ Prior(μ_α, σ_α²)
+        if self.config.item_covariates_difficulty and item_covariates is not None:
             n_covariates = item_covariates.shape[1]
-            delta = numpyro.sample(
+
+            # Sample covariate effects with flexible prior
+            delta = self._sample_with_prior(
                 "item_difficulty_covariate_effects",
-                dist.Normal(0.0, self.config.prior_covariate_scale).expand([n_covariates]),
-            )
-            mean_alpha = jnp.dot(item_covariates, delta)
-            difficulty = numpyro.sample(
-                "difficulty",
-                dist.Normal(mean_alpha, self.config.prior_difficulty_scale).to_event(1),
-            )
-        else:
-            difficulty = numpyro.sample(
-                "difficulty",
-                dist.Normal(self.config.prior_difficulty_mean, self.config.prior_difficulty_scale)
-                .expand([n_items])
-                .to_event(1),
+                shape=(n_covariates,),
+                family=self.config.prior_covariate_family,
+                mean=0.0,
+                scale=self.config.prior_covariate_scale,
+                df=self.config.prior_covariate_df,
             )
 
-        # Discrimination: β_j ~ N(0, σ_β²)
-        if self.config.hierarchical and item_covariates is not None:
-            n_covariates = item_covariates.shape[1]
-            zeta = numpyro.sample(
-                "item_discrimination_covariate_effects",
-                dist.Normal(0.0, self.config.prior_covariate_scale).expand([n_covariates, n_dims]),
-            )
-            mean_beta = jnp.dot(item_covariates, zeta)
-            discrimination = numpyro.sample(
-                "discrimination",
-                dist.Normal(mean_beta, self.config.prior_discrimination_scale).to_event(2),
+            mean_alpha = jnp.dot(item_covariates, delta)
+            # Use the specified prior family for residuals
+            difficulty = self._sample_with_prior(
+                "difficulty",
+                shape=(n_items,),
+                family=self.config.prior_difficulty_family,
+                mean=mean_alpha,
+                scale=self.config.prior_difficulty_scale,
+                df=self.config.prior_difficulty_df,
             )
         else:
-            discrimination = numpyro.sample(
+            # Standard difficulty with flexible prior
+            difficulty = self._sample_with_prior(
+                "difficulty",
+                shape=(n_items,),
+                family=self.config.prior_difficulty_family,
+                mean=self.config.prior_difficulty_mean,
+                scale=self.config.prior_difficulty_scale,
+                df=self.config.prior_difficulty_df,
+            )
+
+        # Discrimination: β_j ~ Prior(μ_β, σ_β²)
+        if self.config.item_covariates_discrimination and item_covariates is not None:
+            # Hierarchical discrimination: β_j = Z_j * ζ + ε_j
+            # This models discrimination as a function of item characteristics
+            n_covariates = item_covariates.shape[1]
+
+            # Covariate effects on discrimination with flexible prior
+            zeta = self._sample_with_prior(
+                "item_discrimination_covariate_effects",
+                shape=(n_covariates, n_dims),
+                family=self.config.prior_covariate_family,
+                mean=0.0,
+                scale=self.config.prior_covariate_scale,
+                df=self.config.prior_covariate_df,
+            )
+
+            # Mean discrimination from covariates
+            mean_beta = jnp.dot(item_covariates, zeta)
+
+            # Use the specified prior family for residuals
+            discrimination = self._sample_with_prior(
                 "discrimination",
-                dist.Normal(
-                    self.config.prior_discrimination_mean, self.config.prior_discrimination_scale
-                )
-                .expand([n_items, n_dims])
-                .to_event(2),
+                shape=(n_items, n_dims),
+                family=self.config.prior_discrimination_family,
+                mean=mean_beta,
+                scale=self.config.prior_discrimination_scale,
+                df=self.config.prior_discrimination_df,
+            )
+        else:
+            # Standard discrimination with flexible prior
+            discrimination = self._sample_with_prior(
+                "discrimination",
+                shape=(n_items, n_dims),
+                family=self.config.prior_discrimination_family,
+                mean=self.config.prior_discrimination_mean,
+                scale=self.config.prior_discrimination_scale,
+                df=self.config.prior_discrimination_df,
             )
 
         # Index by item
@@ -332,9 +446,9 @@ class IdealPointEstimator(BaseIdealPointModel):
         responses : np.ndarray, shape (n_obs,), optional
             Response values. Required if data is not provided.
         person_covariates : pd.DataFrame or np.ndarray, optional
-            Person-level covariates (only used if config.hierarchical=True)
+            Person-level covariates (only used if config.person_covariates=True)
         item_covariates : pd.DataFrame or np.ndarray, optional
-            Item-level covariates (only used if config.hierarchical=True)
+            Item-level covariates (only used if config.item_covariates=True or item_covariates_*=True)
         timepoints : np.ndarray, optional
             Time indices for each observation (only used if config.temporal_dynamics=True)
 
@@ -667,7 +781,7 @@ class IdealPointEstimator(BaseIdealPointModel):
         """MAP estimation via SVI with point mass guide."""
         from numpyro.infer import SVI, Trace_ELBO
         from numpyro.infer.autoguide import AutoDelta
-        from numpyro.optim import Adam, SGD, Adagrad
+        from numpyro.optim import SGD, Adagrad, Adam
 
         # Point mass guide (delta functions at MAP estimate)
         guide = AutoDelta(self._build_model)
@@ -737,7 +851,7 @@ class IdealPointEstimator(BaseIdealPointModel):
     ):
         """Variational inference."""
         from numpyro.infer import SVI, Trace_ELBO
-        from numpyro.optim import Adam, SGD, Adagrad
+        from numpyro.optim import SGD, Adagrad, Adam
 
         # Select guide
         if guide_type == "normal":
@@ -1482,7 +1596,7 @@ class IdealPointEstimator(BaseIdealPointModel):
         # Reconstruct config
         config_dict = save_dict["config"]
         # Convert enum strings back to enums if needed
-        from ..core.base import ResponseType, IdentificationConstraint
+        from ..core.base import IdentificationConstraint, ResponseType
 
         if "response_type" in config_dict and isinstance(config_dict["response_type"], str):
             config_dict["response_type"] = ResponseType(config_dict["response_type"])

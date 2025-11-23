@@ -2,9 +2,10 @@
 Diagnostics utilities for checking JAX installation and device configuration.
 """
 
-from typing import Dict, Any
-from .device import DeviceManager
+from typing import Any, Dict
+
 from ..utils.logging import get_logger
+from .device import DeviceManager
 
 logger = get_logger(__name__)
 

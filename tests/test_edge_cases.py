@@ -5,10 +5,10 @@ Tests unusual but valid inputs and boundary conditions to ensure
 robust behavior.
 """
 
-import pytest
 import numpy as np
+import pytest
 
-from idealist import IdealPointEstimator, IdealPointConfig, ResponseType
+from idealist import IdealPointConfig, IdealPointEstimator, ResponseType
 
 
 class TestDataEdgeCases:

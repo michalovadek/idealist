@@ -5,13 +5,13 @@ Tests end-to-end workflows that a user would typically perform,
 including data loading, model fitting, results extraction, and persistence.
 """
 
-import pytest
 import numpy as np
 import pandas as pd
+import pytest
 
-from idealist import IdealPointEstimator, IdealPointConfig, ResponseType
-from idealist.data import load_data, detect_response_type
+from idealist import IdealPointConfig, IdealPointEstimator, ResponseType
 from idealist.core.persistence import ModelIO
+from idealist.data import detect_response_type, load_data
 
 
 class TestEndToEndWorkflows:

@@ -52,26 +52,26 @@ __version__ = "0.1.0"
 
 # IMPORTANT: Configure XLA CPU cores BEFORE any JAX imports
 # This must happen first to ensure JAX recognizes all available CPU cores
+# Import data utilities
+from idealist import data
 from idealist.core import device  # noqa: F401 - triggers XLA configuration
 
 # Import core classes
 from idealist.core.base import (
     IdealPointConfig,
     IdealPointResults,
-    ResponseType,
     IdentificationConstraint,
+    PriorFamily,
+    ResponseType,
 )
-from idealist.models.ideal_point import IdealPointEstimator
-
-# Import data utilities
-from idealist import data
-
-# Import logging utilities
-from idealist.utils.logging import setup_logger, get_logger
 
 # Import device configuration utilities (optional advanced usage)
 from idealist.core.device import configure_cpu_cores
 from idealist.core.diagnostics import check_installation, print_device_info
+from idealist.models.ideal_point import IdealPointEstimator
+
+# Import logging utilities
+from idealist.utils.logging import get_logger, setup_logger
 
 __all__ = [
     # Main API
@@ -81,6 +81,7 @@ __all__ = [
     # Enums
     "ResponseType",
     "IdentificationConstraint",
+    "PriorFamily",
     # Submodules
     "data",
     # Logging

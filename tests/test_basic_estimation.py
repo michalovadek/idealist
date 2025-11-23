@@ -5,10 +5,10 @@ Tests the core functionality of the IdealPointEstimator class
 with different inference methods (VI, MAP, MCMC).
 """
 
-import pytest
 import numpy as np
+import pytest
 
-from idealist import IdealPointEstimator, IdealPointConfig, ResponseType
+from idealist import IdealPointConfig, IdealPointEstimator, ResponseType
 
 
 class TestBasicEstimation:
@@ -262,9 +262,10 @@ class TestDataLoaders:
         assert results is not None
         assert results.ideal_points.shape[0] == data["n_persons"]
 
-    def test_IdealPointData_loader(self):
+    def test_ideal_point_data_loader(self):
         """Test loading data with IdealPointData class."""
         import pandas as pd
+
         from idealist.data import load_data
 
         # Create sample data

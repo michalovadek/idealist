@@ -5,12 +5,12 @@ Tests that the package properly validates inputs and raises
 appropriate errors for invalid data.
 """
 
-import pytest
 import numpy as np
 import pandas as pd
+import pytest
 
-from idealist import IdealPointEstimator, IdealPointConfig, ResponseType
-from idealist.data import load_data, detect_response_type, IdealPointData, validate_response_data
+from idealist import IdealPointConfig, IdealPointEstimator, ResponseType
+from idealist.data import IdealPointData, detect_response_type, load_data, validate_response_data
 
 
 class TestDataValidation:
@@ -242,7 +242,7 @@ class TestDataLoader:
         assert "HR101" in data.item_names
         assert "HR202" in data.item_names
 
-    def test_IdealPointData_validation(self):
+    def test_ideal_point_data_validation(self):
         """Test that IdealPointData validates inputs."""
         # Valid data
         data = IdealPointData(
@@ -255,7 +255,7 @@ class TestDataLoader:
         assert data.n_persons == 2
         assert data.n_items == 2
 
-    def test_IdealPointData_invalid_ids(self):
+    def test_ideal_point_data_invalid_ids(self):
         """Test that IdealPointData rejects invalid IDs."""
         with pytest.raises(ValueError):
             # person_id 5 exceeds number of person_names (only 2)
@@ -267,7 +267,7 @@ class TestDataLoader:
                 item_names=["X", "Y"],
             )
 
-    def test_IdealPointData_summary(self):
+    def test_ideal_point_data_summary(self):
         """Test the summary method."""
         data = IdealPointData(
             person_ids=np.array([0, 1, 0, 1]),
